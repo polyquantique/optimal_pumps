@@ -1,2 +1,2 @@
-docs/.ipynb_checkpoints/*
-docs/Pipenv
+.ipynb_checkpoints/
+Pipenv
