@@ -4,6 +4,19 @@ from functools import partial
 from jax import jit, vmap
 import numpy as np
 
+def get_complex_array(v):
+    """
+    Returns a complex array with real part the first half of the input vector
+    and the imaginary part the second half of the input vector.
+    
+    Args:
+        v (array[float]): vector to be transformed into complex
+    returns:
+        array([complex]): output vector
+    """
+    real = v[:len(v)//2]
+    imag = v[len(v)//2:]
+    return real + 1j*imag
 @partial(jit, static_argnums=(1,))
 def moving_window(a, size: int):
     """
@@ -16,6 +29,7 @@ def moving_window(a, size: int):
     returns:
         array[float]: output matrix
     """
+    a = get_complex_array(a)
     starts = jnp.arange(len(a) - size + 1)
     return vmap(lambda start: jax.lax.dynamic_slice(a, (start,), (size,)))(starts)
 def get_U_matrix(a, size: int, alpha, G, H, l):
@@ -94,7 +108,14 @@ def get_euclidean_loss_K(a, size: int, alpha, G, H, l, y_K):
         float: euclidean distance
     """
     N_value, schmidt_number = get_observables(a, size, alpha, G, H, l)
-    return (jnp.real(schmidt_number) - y_K)**2
+    loss = (jnp.real(schmidt_number) - y_K)**2
+    """
+    if jnp.nan_to_num(loss) != 0:
+        return loss
+    else: 
+        raise ValueError("Loss is nan")
+        """
+    return loss
 def get_euclidean_loss_N(a, size: int, alpha, G, H, l, y_N):
     """
     Gives the euclidean distance between the number of pairs ot the system and 
@@ -112,8 +133,14 @@ def get_euclidean_loss_N(a, size: int, alpha, G, H, l, y_N):
         float: euclidean distance
     """
     N_value, schmidt_number = get_observables(a, size, alpha, G, H, l)
-    return (jnp.real(N_value) - y_N)**2
-def update(a, size: int, alpha, G, H, l, y_N, y_K, lr = 0.1):
+    loss = (jnp.real(N_value) - y_N)**2
+    """
+    if jnp.nan_to_num(loss) != 0:
+        return loss
+    else: raise ValueError("Loss is nan")
+    """
+    return loss
+def update(a, size: int, alpha, G, H, l, y_N, y_K, lr = 0.1): 
     """
     Updates the a vector through back-propagation
 
