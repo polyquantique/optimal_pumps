@@ -1,2 +1,0 @@
-This repo is used to find the optimal parameters of the pump laser to get high purity quantum light by SPDC process. This project is based on Jax.
-To use Jax, Jaxlib as well as Jax need to be downloaded.
