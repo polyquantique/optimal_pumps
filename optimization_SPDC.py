@@ -140,6 +140,25 @@ def get_euclidean_loss_N(a, size: int, alpha, G, H, l, y_N):
     else: raise ValueError("Loss is nan")
     """
     return loss
+def get_total_loss(a, size: int, alpha, G, H, l, y_N, y_K):
+    """
+    Gives the total loss. 
+
+    Args:
+        a (array[float]): vector that spawns the F matrix
+        size (int): length of a divided by 2
+        alpha (float): constant including power of pump, group velocity of all modes, etc.
+        G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
+        H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
+        l (float): length of the waveguide
+        y_N (float): desired value for number of pairs
+        y_K (float): desired value for Schmidt number
+    returns:
+        float:  total loss
+    """
+    loss_K = get_euclidean_loss_K(a, size, alpha, G, H, l, y_K)
+    loss_N = get_euclidean_loss_N(a, size, alpha, G, H, l, y_N)
+    return loss_K + loss_N
 def update(a, size: int, alpha, G, H, l, y_N, y_K, lr = 0.1): 
     """
     Updates the a vector through back-propagation
