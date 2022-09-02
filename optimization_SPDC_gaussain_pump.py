@@ -135,7 +135,8 @@ def get_euclidean_loss_N(theta, w, alpha, G, H, l, y_N):
         float: euclidean distance
     """
     N_value, schmidt_number = get_observable(theta, w, alpha, G, H, l)
-    loss = (jnp.real(N_value) - y_N)**2
+    # Replace by a loss that gies the hard penalty (inf for loss!=0 and min for loss = 0)
+    loss = (N_value-y_N)**2
     """
     if jnp.nan_to_num(loss) != 0:
         return loss
