@@ -111,12 +111,6 @@ def get_euclidean_loss_K(theta, w, alpha, G, H, l, y_K):
     """
     N_value, schmidt_number = get_observable(theta, w, alpha, G, H, l)
     loss = (jnp.real(schmidt_number) - y_K)**2
-    """
-    if jnp.nan_to_num(loss) != 0:
-        return loss
-    else: 
-        raise ValueError("Loss is nan")\
-    """
     return loss
 def get_euclidean_loss_N(theta, w, alpha, G, H, l, y_N):
     """
@@ -135,13 +129,28 @@ def get_euclidean_loss_N(theta, w, alpha, G, H, l, y_N):
         float: euclidean distance
     """
     N_value, schmidt_number = get_observable(theta, w, alpha, G, H, l)
-    loss = (jnp.real(N_value) - y_N)**2
-    """
-    if jnp.nan_to_num(loss) != 0:
-        return loss
-    else: raise ValueError("Loss is nan")
-    """
+    # Replace by a loss that gives the hard penalty (inf for loss!=0 and min for loss = 0)
+    loss = (N_value-y_N)**2
     return loss
+def get_total_loss(theta, w, alpha, G, H, l, y_N, y_K):
+    """
+    Gives the total loss. 
+
+    Args:
+        theta (array[float]): vector that contains the parameters to optimize
+        w (array[float]): vector containing frequencies that will go into the gaussian
+        alpha (float): constant including power of pump, group velocity of all modes, etc.
+        G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
+        H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
+        l (float): length of the waveguide
+        y_N (float): desired value for number of pairs
+        y_K (float): desired value for Schmidt number
+    returns:
+        float:  total loss
+    """
+    loss_K = get_euclidean_loss_K(theta, w, alpha, G, H, l, y_K)
+    loss_N = get_euclidean_loss_N(theta, w, alpha, G, H, l, y_N)
+    return loss_K + loss_N
 def update(theta, w, alpha, G, H, l, y_N, y_K, lr = 0.1):
     """
     Updates the a vector through back-propagation
