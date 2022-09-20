@@ -66,12 +66,15 @@ def get_submatrix(theta, w, alpha, G, H, l):
         H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
         l (float): length of the waveguide
     returns:
-        array[complex]: Submatrix of the U matrix
+        U_ss,U_is, U_si, U_ii (array[complex]): Submatrices of the U matrix
     """
     U = get_U_matrix(theta, w, alpha, G, H, l)
     N = len(U)
-    U_is = U[0:N//2, N//2:N]
-    return U_is
+    U_ss = U[:N//2, :N//2]
+    U_is = U[:N//2, N//2:N]
+    U_si = U[N//2:N, :N//2]
+    U_ii = U[N//2:N,N//2:N]
+    return U_ss, U_is, U_si, U_ii
 def get_observable(theta, w, alpha, G, H, l):
     """
     Gives the observables, namely the Schmidt number and the average photon pair number
@@ -88,12 +91,12 @@ def get_observable(theta, w, alpha, G, H, l):
         N_value (float): the average number of photon pairs created
         schmidt_number (float): the schmidt number corresponding to all the parameters
     """
-    U_is = get_submatrix(theta, w, alpha, G, H, l)
+    U_ss, U_is, U_si, U_ii = get_submatrix(theta, w, alpha, G, H, l)
     N_matrix = jnp.matmul(jnp.conj(U_is), U_is.T)
     N_value = jnp.trace(N_matrix)
     schmidt_number = (N_value**2)/(jnp.trace(jnp.matmul(N_matrix, N_matrix)))
     return jnp.real(N_value), jnp.real(schmidt_number)
-def get_euclidean_loss_K(theta, w, alpha, G, H, l, y_K):
+def get_loss(theta, w, alpha, G, H, l, y_N):
     """
     Gives the euclidean distance between the Schmidt number ot the system and 
     the desired value. 
@@ -105,70 +108,13 @@ def get_euclidean_loss_K(theta, w, alpha, G, H, l, y_K):
         G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
         H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
         l (float): length of the waveguide
-        y_K (float): desired value for Schmidt number
+        y_N (float): desired value of pair number
     returns:
-        float: euclidean distance
+        float: loss value
     """
     N_value, schmidt_number = get_observable(theta, w, alpha, G, H, l)
-    loss = (jnp.real(schmidt_number) - y_K)**2
+    loss = (jnp.real(schmidt_number) - 1)**2 + (jnp.real(N_value) - y_N)**2
     return loss
-def get_euclidean_loss_N(theta, w, alpha, G, H, l, y_N):
-    """
-    Gives the euclidean distance between the number of pairs ot the system and 
-    the desired value. 
-
-    Args:
-        theta (array[float]): vector that contains the parameters to optimize
-        w (array[float]): vector containing frequencies that will go into the gaussian
-        alpha (float): constant including power of pump, group velocity of all modes, etc.
-        G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
-        H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
-        l (float): length of the waveguide
-        y_N (float): desired value for number of pairs
-    returns:
-        float: euclidean distance
-    """
-    N_value, schmidt_number = get_observable(theta, w, alpha, G, H, l)
-    # Replace by a loss that gives the hard penalty (inf for loss!=0 and min for loss = 0)
-    loss = (N_value-y_N)**2
-    return loss
-def get_total_loss(theta, w, alpha, G, H, l, y_N, y_K):
-    """
-    Gives the total loss. 
-
-    Args:
-        theta (array[float]): vector that contains the parameters to optimize
-        w (array[float]): vector containing frequencies that will go into the gaussian
-        alpha (float): constant including power of pump, group velocity of all modes, etc.
-        G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
-        H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
-        l (float): length of the waveguide
-        y_N (float): desired value for number of pairs
-        y_K (float): desired value for Schmidt number
-    returns:
-        float:  total loss
-    """
-    loss_K = get_euclidean_loss_K(theta, w, alpha, G, H, l, y_K)
-    loss_N = get_euclidean_loss_N(theta, w, alpha, G, H, l, y_N)
-    return loss_K + loss_N
-def update(theta, w, alpha, G, H, l, y_N, y_K, lr = 0.1):
-    """
-    Updates the a vector through back-propagation
-
-    Args:
-        theta (array[float]): vector that contains the parameters to optimize
-        w (array[float]): vector containing frequencies that will go into the gaussian
-        alpha (float): constant including power of pump, group velocity of all modes, etc.
-        G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
-        H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
-        l (float): length of the waveguide
-        y_N (float): desired value for number of pairs
-        y_K (float): desired value for Schmidt number
-        lr (float): learninng rate for backpropagation
-    returns:
-        array[float]: the updated a vector 
-    """
-    return theta - lr*(jax.grad(get_euclidean_loss_K, argnums=(0))(theta, w, alpha, G, H, l, y_K) + jax.grad(get_euclidean_loss_N, argnums=(0))(theta, w, alpha, G, H, l, y_N))
 def get_JSA(theta, w, alpha, G, H, l):
     """
     Gives the JSA matrix by singular value decomposition and extracting 
@@ -188,13 +134,10 @@ def get_JSA(theta, w, alpha, G, H, l):
     N = len(U)
     x = jnp.linspace(w[0], w[-1], len(w)//2)
     dw = (x[len(x) - 1] - x[0]) / (len(x) - 1)
-    # Removing free propagation phases and breaking it into blocks
     Uss = U[0 : N // 2, 0 : N // 2]
     Usi = U[0 : N // 2, N // 2 : N]
     Uiss = U[N // 2 : N, 0 : N // 2]
-    # Constructing the moment matrix
     M = jnp.matmul(Uss, (jnp.conj(Uiss).T))
-    # Using SVD of M to construct JSA
     L, s, Vh = jax.scipy.linalg.svd(M)
     Sig = np.diag(s)
     D = np.arcsinh(2 * Sig) / 2

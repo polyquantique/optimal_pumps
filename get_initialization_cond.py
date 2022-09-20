@@ -2,26 +2,6 @@ import numpy as np
 import jax.numpy as jnp
 import scipy
 
-def symmetric_v(vp, sigma, l, a):
-    """
-    Gives group velocity matching conditions for a SPDC process. Note that it gives idler 
-    and signal group velocity depending on what pulse width is used. Closer look at those
-    conditions can be viewed in the paper by Graffitti et al. 
-    (Design considerations for high-purity heralded single-photon sources)
-    
-    Args:
-        vp(float): pump group velocity
-        sigma(float): width of the pump
-        l(float): length of the waveguide
-        a(float): term to get the best pump at sigma width
-        
-    returns:
-        vs(float): signal group velocity
-        vi(float): idler group velocity
-    """
-    vi = vp / (1 - 2 * a * vp / (l * sigma))
-    vs = vp / (1 + 2 * a * vp / (l * sigma))
-    return vs, vi
 def get_constants(vp, l, wi, wf, Np, N = 401):
     """
     Gives the values of the U matrix that do not change with backpropagation.
@@ -43,7 +23,8 @@ def get_constants(vp, l, wi, wf, Np, N = 401):
     x = np.linspace(wi, wf, N)
     sigma = 1
     a = 1.61/1.13
-    vs, vi = symmetric_v(vp, sigma, l, a)
+    vi = vp / (1 - 2 * a * vp / (l * sigma))
+    vs = vp / (1 + 2 * a * vp / (l * sigma))
     alpha = np.sqrt(Np)*(x[len(x) - 1] - x[0])/(len(x) - 1)/(np.sqrt(2 * np.pi * vs * vi * vp))
     G = np.diag((1/vs - 1/vp)*x)
     H = np.diag((1/vi - 1/vp)*x)
@@ -68,7 +49,7 @@ def get_initialization_array(init_params, vp, l, wi, wf, Np, method = "hermite",
         N(int): resolution of the F matrix
         
     returns:
-        
+        array[complex]: initial pump guess
     """
     alpha, G, H = get_constants(vp, l, wi, wf, Np, N)
     a = []
