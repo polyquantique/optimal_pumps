@@ -1,0 +1,1 @@
+Heuristic search definition: https://www.lancaster.ac.uk/stor-i-student-sites/matthew-randall/2020/04/01/heuristic-search-part-1-introduction-and-basic-search-methods/
