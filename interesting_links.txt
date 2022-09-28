@@ -1,1 +1,3 @@
 Heuristic search definition: https://www.lancaster.ac.uk/stor-i-student-sites/matthew-randall/2020/04/01/heuristic-search-part-1-introduction-and-basic-search-methods/
+Inverse design glob approx: https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.112.123903
+Lagrange evaluation: https://journals.aps.org/pre/abstract/10.1103/PhysRevE.66.066606
