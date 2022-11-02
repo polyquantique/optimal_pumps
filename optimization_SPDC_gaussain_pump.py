@@ -70,10 +70,10 @@ def get_submatrix(theta, w, alpha, G, H, l):
     """
     U = get_U_matrix(theta, w, alpha, G, H, l)
     N = len(U)
-    U_ss = U[:N//2, :N//2]
-    U_is = U[:N//2, N//2:N]
-    U_si = U[N//2:N, :N//2]
-    U_ii = U[N//2:N,N//2:N]
+    U_ss = U[0:N//2, 0:N//2]
+    U_is = U[0:N//2, N//2:N]
+    U_si = U[N//2:N, 0:N//2]
+    U_ii = U[N//2:N, N//2:N]
     return U_ss, U_is, U_si, U_ii
 def get_observable(theta, w, alpha, G, H, l):
     """
