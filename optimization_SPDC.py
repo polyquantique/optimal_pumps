@@ -111,7 +111,7 @@ def get_loss(theta, size: int, alpha, G, H, l, y_N):
         float: loss of objective function
     """
     N_value, schmidt_number = get_observables(theta, size, alpha, G, H, l)
-    loss = (jnp.real(schmidt_number) - 1)**2 + (jnp.real(N_value) - y_N)**2
+    loss = jnp.real(schmidt_number) - 1 + (jnp.real(N_value) - y_N)**2
     return loss
 def get_JSA(x, theta, size: int, alpha, G, H, l):
     """
