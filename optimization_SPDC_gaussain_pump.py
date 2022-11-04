@@ -34,6 +34,19 @@ def get_gaussian(theta, w):
     a, tau, phi = theta
     gaussian = a*jnp.exp(-(tau*w)**2)*jnp.exp(1j*phi)
     return moving_window(gaussian, len(gaussian)//2)[:-1]
+def get_gaussian_pump(theta, w):
+    """
+    Returns a vector that represents the gaussian pump created by the parameters
+    
+    Args: 
+        theta (array[float]): vector that contains the parameters to optimize
+        w (array[float]): vector containing frequencies that will go into the gaussian
+    returns:
+        array[float]: output pump vector
+    """
+    a, tau, phi = theta
+    gaussian = a*jnp.exp(-(tau*w)**w)*jnp.exp(1j*phi)
+    return gaussian
 def get_U_matrix(theta, w, alpha, G, H, l):
     """
     Find the U matrix that is the gives the relationship between annihilation operator
