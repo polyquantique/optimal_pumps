@@ -45,7 +45,7 @@ def get_gaussian_pump(theta, w):
         array[float]: output pump vector
     """
     a, tau, phi = theta
-    gaussian = a*jnp.exp(-(tau*w)**w)*jnp.exp(1j*phi)
+    gaussian = a*jnp.exp(-(tau*w)**2)*jnp.exp(1j*phi)
     return gaussian
 def get_U_matrix(theta, w, alpha, G, H, l):
     """
