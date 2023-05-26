@@ -94,10 +94,9 @@ def get_observables(theta, size: int, alpha, G, H, l):
     N_value = jnp.trace(N_matrix)
     schmidt_number = (N_value**2)/(jnp.trace(jnp.matmul(N_matrix, N_matrix)))
     return jnp.real(N_value), jnp.real(schmidt_number)
-def get_loss(theta, size: int, alpha, G, H, l, y_N):
+def get_loss_N(theta, size: int, alpha, G, H, l, y_N):
     """
-    Gives the euclidean distance between the Schmidt number ot the system and 
-    the desired value. 
+    Gives the closeness of the system to the constraint measured in Euclidean distance.
 
     Args:
         theta (array[float]): problem parameters. Length and values will depend on pump_shape
@@ -108,19 +107,19 @@ def get_loss(theta, size: int, alpha, G, H, l, y_N):
         l (float): length of the waveguide
         y_N (float): desired value for photon pairs
     returns:
-        float: loss of objective function
+        float: value of the difference between the mean photon pair number of system and the 
+        value wished by the user
     """
     N_value, schmidt_number = get_observables(theta, size, alpha, G, H, l)
     # Penalize pumps that have center frequency different from center pump frequency and asymetric
-    loss = jnp.real(schmidt_number) - 1 + (jnp.real(N_value) - y_N)**2
+    loss = (jnp.real(N_value) - y_N)**2
     return loss
-def get_JSA(x, theta, size: int, alpha, G, H, l):
+def get_loss_K(theta, size: int, alpha, G, H, l, omega):
     """
-    Gives the JSA matrix by singular value decomposition and extracting 
-    the weights of all Schmidt modes.
+    Gives the value of the objective function.
 
     Args:
-        x (array[float]): vector the contains all of desired frequencies
+        omega (array[float]): frequency of the pump
         theta (array[float]): problem parameters. Length and values will depend on pump_shape
         size (int): length of a divided by 2
         alpha (float): constant including power of pump, group velocity of all modes, etc.
@@ -128,16 +127,30 @@ def get_JSA(x, theta, size: int, alpha, G, H, l):
         H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
         l (float): length of the waveguide
     returns:
-        array[float]: JSA matrix
+        float: value of the objective function
     """
-    U = get_U_matrix(theta, size, alpha, G, H, l)
-    N = len(U)
-    dw = (x[len(x) - 1] - x[0]) / (len(x) - 1)
-    Uss = U[0 : N // 2, 0 : N // 2]
-    Uiss = U[N // 2 : N, 0 : N // 2]
-    M = jnp.matmul(Uss, (jnp.conj(Uiss).T))
-    L, s, Vh = jax.scipy.linalg.svd(M)
-    Sig = np.diag(s)
-    D = np.arcsinh(2 * Sig) / 2
-    JSA = np.abs(L @ D @ Vh) / dw
-    return JSA
+    N_value, schmidt_number = get_observables(theta, size, alpha, G, H, l)
+    mean_loss = jnp.sum(jnp.abs(omega[1] - omega[0])*omega*jnp.abs(theta))/jnp.linalg.norm(theta)
+    # Penalize pumps that have center frequency different from center pump frequency and asymetric
+    loss = jnp.real(schmidt_number) - 1# + 0.0001*mean_loss**2
+    return loss
+def get_penalty_loss(theta, size: int, alpha, G, H, l, y_N, omega, sigma):
+    """
+    Gives the loss value when using the penalty method.
+
+    Args:
+        theta (array[float]): problem parameters. Length and values will depend on pump_shape
+        size (int): length of a divided by 2
+        alpha (float): constant including power of pump, group velocity of all modes, etc.
+        G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
+        H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
+        l (float): length of the waveguide
+        y_N (float): desired value for photon pairs
+        sigma (float): weight of the penalty
+    returns:
+        float: value of the loss when using penalty method
+    """
+    loss_K = get_loss_K(theta, size, alpha, G, H, l, omega)
+    loss_N = get_loss_N(theta, size, alpha, G, H, l, y_N)
+    penalty_loss = loss_K + sigma*((jnp.maximum(0, loss_N))**2 + (jnp.maximum(0, - loss_N))**2)
+    return penalty_loss
