@@ -111,10 +111,8 @@ def get_loss_N(theta, size: int, alpha, G, H, l, y_N):
         value wished by the user
     """
     N_value, schmidt_number = get_observables(theta, size, alpha, G, H, l)
-    # Penalize pumps that have center frequency different from center pump frequency and asymetric
     loss = (jnp.real(N_value) - y_N)**2
     return loss
-# 2 loss functions for K? one with the mean and one without?
 def get_loss_K(theta, size: int, alpha, G, H, l, omega):
     """
     Gives the value of the objective function.
@@ -150,6 +148,7 @@ def get_penalty_loss(theta, size: int, alpha, G, H, l, y_N, omega, sigma):
         H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
         l (float): length of the waveguide
         y_N (float): desired value for photon pairs
+        omega (array[float]): frequency of the pump
         sigma (float): weight of the penalty
     returns:
         float: value of the loss when using penalty method
