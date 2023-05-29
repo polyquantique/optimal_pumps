@@ -64,7 +64,7 @@ def get_U_matrix(theta, w, alpha, G, H, l):
         array[complex]: output matrix
     """
     F = alpha*get_gaussian(theta, w)
-    Q = jnp.block([[G, F], [-jnp.conj(F).T, -jnp.conj(H).T]])
+    Q = jnp.block([[G, F], [-jnp.conj(F).TGaussian, -jnp.conj(H).T]])
     U = jax.scipy.linalg.expm(1j*Q*l)
     return U
 def get_submatrix(theta, w, alpha, G, H, l):
@@ -109,10 +109,9 @@ def get_observable(theta, w, alpha, G, H, l):
     N_value = jnp.trace(N_matrix)
     schmidt_number = (N_value**2)/(jnp.trace(jnp.matmul(N_matrix, N_matrix)))
     return jnp.real(N_value), jnp.real(schmidt_number)
-def get_loss(theta, w, alpha, G, H, l, y_N):
+def get_loss_N(theta, w, alpha, G, H, l, y_N):
     """
-    Gives the euclidean distance between the Schmidt number ot the system and 
-    the desired value. 
+    Gives the closeness of the system to the constraint measured in Euclidean distance.
 
     Args:
         theta (array[float]): vector that contains the parameters to optimize
@@ -121,17 +120,17 @@ def get_loss(theta, w, alpha, G, H, l, y_N):
         G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
         H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
         l (float): length of the waveguide
-        y_N (float): desired value of pair number
+        y_N (float): desired value for photon pairs
     returns:
-        float: loss value
+        float: value of the difference between the mean photon pair number of system and the 
+        value wished by the user
     """
-    N_value, schmidt_number = get_observable(theta, w, alpha, G, H, l)
-    loss = jnp.real(schmidt_number) - 1 + (jnp.real(N_value) - y_N)**2
+    N_value, schmidt_number = get_observables(theta, w, size, alpha, G, H, l)
+    loss = (jnp.real(N_value) - y_N)**2
     return loss
-def get_JSA(theta, w, alpha, G, H, l):
+def get_loss_K(theta, w, alpha, G, H, l):
     """
-    Gives the JSA matrix by singular value decomposition and extracting 
-    the weights of all Schmidt modes.
+    Gives the value of the objective function.
 
     Args:
         theta (array[float]): vector that contains the parameters to optimize
@@ -141,18 +140,27 @@ def get_JSA(theta, w, alpha, G, H, l):
         H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
         l (float): length of the waveguide
     returns:
-        array[float]: JSA matrix
+        float: value of the objective function
     """
-    U = get_U_matrix(theta, w, alpha, G, H, l)
-    N = len(U)
-    x = jnp.linspace(w[0], w[-1], len(w)//2)
-    dw = (x[len(x) - 1] - x[0]) / (len(x) - 1)
-    Uss = U[0 : N // 2, 0 : N // 2]
-    Usi = U[0 : N // 2, N // 2 : N]
-    Uiss = U[N // 2 : N, 0 : N // 2]
-    M = jnp.matmul(Uss, (jnp.conj(Uiss).T))
-    L, s, Vh = jax.scipy.linalg.svd(M)
-    Sig = np.diag(s)
-    D = np.arcsinh(2 * Sig) / 2
-    J = np.abs(L @ D @ Vh) / dw
-    return J
+    N_value, schmidt_number = get_observables(theta, w, alpha, G, H, l)
+    loss = jnp.real(schmidt_number) - 1 
+    return loss
+def get_penalty_loss(theta, w, alpha, G, H, l, y_N, sigma):
+    """
+    Gives the loss value when using the penalty method.
+
+    Args:
+        theta (array[float]): vector that contains the parameters to optimize
+        w (array[float]): vector containing frequencies that will go into the gaussian of pump, group velocity of all modes, etc.
+        G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
+        H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
+        l (float): length of the waveguide
+        y_N (float): desired value for photon pairs
+        sigma (float): weight of the penalty
+    returns:
+        float: value of the loss when using penalty method
+    """
+    loss_K = get_loss_K(theta, size, alpha, G, H, l, omega)
+    loss_N = get_loss_N(theta, size, alpha, G, H, l, y_N)
+    penalty_loss = loss_K + sigma*((jnp.maximum(0, loss_N))**2 + (jnp.maximum(0, - loss_N))**2)
+    return penalty_loss
