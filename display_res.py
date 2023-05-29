@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
-import jax.scipy.linalg.svd
+import jax
 
 def get_JSA(x, U):
     """
@@ -18,19 +18,19 @@ def get_JSA(x, U):
     Uss = U[0 : N // 2, 0 : N // 2]
     Uiss = U[N // 2 : N, 0 : N // 2]
     M = jnp.matmul(Uss, (jnp.conj(Uiss).T))
-    L, s, Vh = jax.scipy.linalg.svd(M)
+    L, s, Vh = scipy.linalg.svd(M)
     Sig = jnp.diag(s)
     D = jnp.arcsinh(2 * Sig) / 2
     JSA = jnp.abs(L @ D @ Vh) / dw
     return JSA
-def plot_pump(pump, omega, pump_label):
+def plot_pump(pumps, omega, pump_labels):
     """
     Plots the real and negative part of the pump
     
     Args:
         pump (array[complex]): complex valued vector containing the pump
         omega (array[float]): vector containing the frequencies
-        pump_label (str): string labeling the pump
+        pump_labels [str]: list of strings labeling each pump
     returns:
         None
     """
@@ -38,5 +38,7 @@ def plot_pump(pump, omega, pump_label):
     plt.title("Pump as a function of the frequency")
     plt.xlabel("Frequency (arbitrary units)")
     plt.ylabel("Amplitude of the pump (arbitrary units)")
-    plt.plot(omega, jnp.real(pump), label = "real part of the pump " + pump_label)
+    for i in range(len(pumps)):
+        plt.plot(omega, jnp.real(pumps[i]), label = "real part of the pump " + pump_labels[i])
+    plt.legend()
     return
