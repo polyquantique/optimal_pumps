@@ -138,24 +138,6 @@ def get_loss_K(theta, size: int, alpha, G, H, l, omega):
     # Penalize pumps that have center frequency different from center pump frequency and asymetric
     loss = jnp.real(schmidt_number) - 1 + 100*(mean_loss_imag+mean_loss_real)
     return loss
-def get_loss(theta, size: int, alpha, G, H, l, omega, y_N):
-    """
-    Add the loss on N and K together.
-
-    Args:
-        theta (array[float]): problem parameters. Length and values will depend on pump_shape
-        size (int): length of a divided by 2
-        alpha (float): constant including power of pump, group velocity of all modes, etc.
-        G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
-        H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
-        l (float): length of the waveguide
-        omega (array[float]): frequency of the pump
-        y_N (float): desired value for photon pairs
-    returns:
-        float: value of the total loss
-    """
-    loss = get_loss_K(theta, size, alpha, G, H, l, omega) + get_loss_N(theta, size, alpha, G, H, l, y_N)
-    return loss
 def get_penalty_loss(theta, size: int, alpha, G, H, l, y_N, omega, sigma):
     """
     Gives the loss value when using the penalty method.
