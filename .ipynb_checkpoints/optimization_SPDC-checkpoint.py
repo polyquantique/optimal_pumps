@@ -114,25 +114,47 @@ def get_loss_N(theta, size: int, alpha, G, H, l, y_N):
     # Penalize pumps that have center frequency different from center pump frequency and asymetric
     loss = (jnp.real(N_value) - y_N)**2
     return loss
+# 2 loss functions for K? one with the mean and one without?
 def get_loss_K(theta, size: int, alpha, G, H, l, omega):
     """
     Gives the value of the objective function.
 
     Args:
-        omega (array[float]): frequency of the pump
         theta (array[float]): problem parameters. Length and values will depend on pump_shape
         size (int): length of a divided by 2
         alpha (float): constant including power of pump, group velocity of all modes, etc.
         G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
         H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
         l (float): length of the waveguide
+        omega (array[float]): frequency of the pump
     returns:
         float: value of the objective function
     """
     N_value, schmidt_number = get_observables(theta, size, alpha, G, H, l)
-    mean_loss = jnp.sum(jnp.abs(omega[1] - omega[0])*omega*jnp.abs(theta))/jnp.linalg.norm(theta)
+    real_theta = theta[:len(theta)//2]
+    imag_theta = theta[len(theta)//2:]
+    mean_loss_real = jnp.sum(((jnp.abs(omega[1] - omega[0])*omega*jnp.abs(real_theta))/jnp.linalg.norm(real_theta))**2)
+    mean_loss_imag = jnp.sum(((jnp.abs(omega[1] - omega[0])*omega*jnp.abs(imag_theta))/jnp.linalg.norm(imag_theta))**2)
     # Penalize pumps that have center frequency different from center pump frequency and asymetric
-    loss = jnp.real(schmidt_number) - 1# + 0.0001*mean_loss**2
+    loss = jnp.real(schmidt_number) - 1 + 100*(mean_loss_imag+mean_loss_real)
+    return loss
+def get_loss(theta, size: int, alpha, G, H, l, omega, y_N):
+    """
+    Add the loss on N and K together.
+
+    Args:
+        theta (array[float]): problem parameters. Length and values will depend on pump_shape
+        size (int): length of a divided by 2
+        alpha (float): constant including power of pump, group velocity of all modes, etc.
+        G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
+        H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
+        l (float): length of the waveguide
+        omega (array[float]): frequency of the pump
+        y_N (float): desired value for photon pairs
+    returns:
+        float: value of the total loss
+    """
+    loss = get_loss_K(theta, size, alpha, G, H, l, omega) + get_loss_N(theta, size, alpha, G, H, l, y_N)
     return loss
 def get_penalty_loss(theta, size: int, alpha, G, H, l, y_N, omega, sigma):
     """
