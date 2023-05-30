@@ -134,7 +134,7 @@ def get_loss_K(theta, size: int, alpha, G, H, l, omega):
     mean_loss_real = jnp.sum(((jnp.abs(omega[1] - omega[0])*omega*jnp.abs(real_theta))/jnp.linalg.norm(real_theta))**2)
     mean_loss_imag = jnp.sum(((jnp.abs(omega[1] - omega[0])*omega*jnp.abs(imag_theta))/jnp.linalg.norm(imag_theta))**2)
     # Penalize pumps that have center frequency different from center pump frequency and asymetric
-    loss = jnp.real(schmidt_number) - 1 + 100*(mean_loss_imag+mean_loss_real)
+    loss = jnp.real(schmidt_number) - 1 + 20*(mean_loss_imag+mean_loss_real)
     return loss
 def get_penalty_loss(theta, size: int, alpha, G, H, l, y_N, omega, sigma):
     """
