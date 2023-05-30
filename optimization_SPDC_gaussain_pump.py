@@ -64,7 +64,7 @@ def get_U_matrix(theta, w, alpha, G, H, l):
         array[complex]: output matrix
     """
     F = alpha*get_gaussian(theta, w)
-    Q = jnp.block([[G, F], [-jnp.conj(F).TGaussian, -jnp.conj(H).T]])
+    Q = jnp.block([[G, F], [-jnp.conj(F).T, -jnp.conj(H).T]])
     U = jax.scipy.linalg.expm(1j*Q*l)
     return U
 def get_submatrix(theta, w, alpha, G, H, l):
@@ -88,7 +88,7 @@ def get_submatrix(theta, w, alpha, G, H, l):
     U_si = U[N//2:N, 0:N//2]
     U_ii = U[N//2:N, N//2:N]
     return U_ss, U_is, U_si, U_ii
-def get_observable(theta, w, alpha, G, H, l):
+def get_observables(theta, w, alpha, G, H, l):
     """
     Gives the observables, namely the Schmidt number and the average photon pair number
     to optimize.
@@ -125,7 +125,7 @@ def get_loss_N(theta, w, alpha, G, H, l, y_N):
         float: value of the difference between the mean photon pair number of system and the 
         value wished by the user
     """
-    N_value, schmidt_number = get_observables(theta, w, size, alpha, G, H, l)
+    N_value, schmidt_number = get_observables(theta, w, alpha, G, H, l)
     loss = (jnp.real(N_value) - y_N)**2
     return loss
 def get_loss_K(theta, w, alpha, G, H, l):
@@ -160,7 +160,7 @@ def get_penalty_loss(theta, w, alpha, G, H, l, y_N, sigma):
     returns:
         float: value of the loss when using penalty method
     """
-    loss_K = get_loss_K(theta, size, alpha, G, H, l, omega)
-    loss_N = get_loss_N(theta, size, alpha, G, H, l, y_N)
+    loss_K = get_loss_K(theta, w, alpha, G, H, l)
+    loss_N = get_loss_N(theta, w, alpha, G, H, l, y_N)
     penalty_loss = loss_K + sigma*((jnp.maximum(0, loss_N))**2 + (jnp.maximum(0, - loss_N))**2)
     return penalty_loss
