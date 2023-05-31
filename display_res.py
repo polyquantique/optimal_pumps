@@ -39,6 +39,6 @@ def plot_pump(pumps, omega, pump_labels):
     plt.xlabel("Frequency (arbitrary units)")
     plt.ylabel("Amplitude of the pump (arbitrary units)")
     for i in range(len(pumps)):
-        plt.plot(omega, jnp.real(pumps[i]), label = "real part of the pump " + pump_labels[i])
+        plt.plot(omega, jnp.real(pumps[i]), label = pump_labels[i])
     plt.legend()
     return
