@@ -131,9 +131,11 @@ def get_loss_K(theta, size: int, alpha, G, H, l, omega):
     N_value, schmidt_number = get_observables(theta, size, alpha, G, H, l)
     real_theta = theta[:len(theta)//2]
     imag_theta = theta[len(theta)//2:]
+    # mean_loss_real and mean_loss_imag add another objective function that is minimizing the variance.
+    # Without this objective function, optimizing a random seed would give a pump located at a distance from
+    # central frequency
     mean_loss_real = jnp.sum(((jnp.abs(omega[1] - omega[0])*omega*jnp.abs(real_theta))/jnp.linalg.norm(real_theta))**2)
     mean_loss_imag = jnp.sum(((jnp.abs(omega[1] - omega[0])*omega*jnp.abs(imag_theta))/jnp.linalg.norm(imag_theta))**2)
-    # Penalize pumps that have center frequency different from center pump frequency and asymetric
     loss = jnp.real(schmidt_number) - 1 + 40*(mean_loss_imag+mean_loss_real)
     return loss
 def get_penalty_loss(theta, size: int, alpha, G, H, l, y_N, omega, sigma):
