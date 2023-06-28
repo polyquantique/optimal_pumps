@@ -2,7 +2,7 @@ import numpy as np
 import jax.numpy as jnp
 import scipy
 
-def get_constants(vp, l, wi, wf, Np, N = 401):
+def get_constants(vp, l, wi, wf, Np, alpha_phase, N = 401):
     """
     Gives the values of the U matrix that do not change with backpropagation.
     All nonlinear interactions beyond second order are ignored.
@@ -13,6 +13,7 @@ def get_constants(vp, l, wi, wf, Np, N = 401):
         wi(float): starting frequency difference from center frequency
         wf(float): ending frequency difference from center frequency
         Np(float): initial power of the pump
+        alpha_phase(float): the phase of the coefficient multiplying the pump
         N(int): resolution of the F matrix
         
     returns:
@@ -25,9 +26,9 @@ def get_constants(vp, l, wi, wf, Np, N = 401):
     a = 1.61/1.13
     vi = vp / (1 - 2 * a * vp / (l * sigma))
     vs = vp / (1 + 2 * a * vp / (l * sigma))
-    alpha = np.sqrt(Np)*(x[len(x) - 1] - x[0])/(len(x) - 1)/(np.sqrt(2 * np.pi * vs * vi * vp))
-    G = np.diag((1/vs - 1/vp)*x)
-    H = np.diag((1/vi - 1/vp)*x)
+    alpha = jnp.exp(1.j*alpha_phase)*jnp.sqrt(Np)*(x[len(x) - 1] - x[0])/(len(x) - 1)/(np.sqrt(2 * np.pi * vs * vi * vp))
+    G = jnp.diag((1/vs - 1/vp)*x)
+    H = jnp.diag((1/vi - 1/vp)*x)
     return alpha, G, H
 def get_initialization_array(init_params, vp, l, wi, wf, Np, method = "hermite", N=401):
     """
