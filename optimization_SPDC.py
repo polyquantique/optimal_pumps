@@ -24,8 +24,8 @@ def moving_window(theta, size: int):
     addition of the terms a_i and a_j.
     
     Args: 
-        theta (array[float]): problem parameters. Length and values will depend on pump_shape
-        size (int): length of pump vector
+        theta (array[float]): problem parameters. Length is 4 times size
+        size (int): resolution of the matrices
     returns:
         array[float]: Hankel matrix representing the pump
     """
@@ -39,8 +39,8 @@ def get_U_matrix(theta, size: int, alpha, G, H, l):
     and at an initial position.
 
     Args:
-        theta (array[float]): problem parameters. Length and values will depend on pump_shape
-        size (int): length of a divided by 2
+        theta (array[float]): problem parameters. Length is 4 times size
+        size (int): resolution of the matrices
         alpha (float): constant including power of pump, group velocity of all modes, etc.
         G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
         H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
@@ -57,8 +57,8 @@ def get_submatrices(theta, size: int, alpha, G, H, l):
     Gives submatrix from U matrix to calculate the Schmidt number and the mean photon number.
 
     Args:
-        theta (array[float]): problem parameters. Length and values will depend on pump_shape
-        size (int): length of a divided by 2
+        theta (array[float]): problem parameters. Length is 4 times size
+        size (int): resolution of the matrices
         alpha (float): constant including power of pump, group velocity of all modes, etc.
         G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
         H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
@@ -79,8 +79,8 @@ def get_observables(theta, size: int, alpha, G, H, l):
     to optimize.
 
     Args:
-        theta (array[float]): problem parameters. Length and values will depend on pump_shape
-        size (int): length of a divided by 2
+        theta (array[float]): problem parameters. Length is 4 times size
+        size (int): resolution of the matrices
         alpha (float): constant including power of pump, group velocity of all modes, etc.
         G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
         H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
@@ -99,8 +99,8 @@ def get_loss_N(theta, size: int, alpha, G, H, l, y_N):
     Gives the closeness of the system to the constraint measured in Euclidean distance.
 
     Args:
-        theta (array[float]): problem parameters. Length and values will depend on pump_shape
-        size (int): length of a divided by 2
+        theta (array[float]): problem parameters. Length is 4 times size
+        size (int): resolution of the matrices
         alpha (float): constant including power of pump, group velocity of all modes, etc.
         G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
         H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
@@ -118,13 +118,13 @@ def get_loss_K(theta, size: int, alpha, G, H, l, omega):
     Gives the value of the objective function.
 
     Args:
-        theta (array[float]): problem parameters. Length and values will depend on pump_shape
-        size (int): length of a divided by 2
+        theta (array[float]): problem parameters. Length is 4 times size
+        size (int): resolution of the matrices
         alpha (float): constant including power of pump, group velocity of all modes, etc.
         G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
         H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
         l (float): length of the waveguide
-        omega (array[float]): frequency of the pump
+        omega (array[float]): frequency domain of the pump
     returns:
         float: value of the objective function
     """
@@ -143,8 +143,8 @@ def get_penalty_loss(theta, size: int, alpha, G, H, l, y_N, omega, sigma):
     Gives the loss value when using the penalty method.
 
     Args:
-        theta (array[float]): problem parameters. Length and values will depend on pump_shape
-        size (int): length of a divided by 2
+        theta (array[float]): problem parameters. Length is 4 times size
+        size (int): resolution of the matrices
         alpha (float): constant including power of pump, group velocity of all modes, etc.
         G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
         H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
