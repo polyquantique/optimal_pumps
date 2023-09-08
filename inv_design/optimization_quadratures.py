@@ -3,6 +3,7 @@ import jax.numpy as jnp
 from functools import partial
 from jax import jit, vmap
 import numpy as np
+import jaxopt
 
 @partial(jit, static_argnums=(1,))
 def moving_window(theta, size: int):
@@ -106,3 +107,22 @@ def get_penalty_loss(theta, size:int, alpha, H, l, omega, y_N, sigma):
     loss_N = get_loss_N(theta, size, alpha, H, l, y_N)
     penalty_loss = loss_K + sigma*((jnp.maximum(0, loss_N))**2 + (jnp.maximum(0, - loss_N))**2)
     return penalty_loss
+def optimize(theta, size:int, alpha, H, l, omega, y_N, sigma, optimizer, penalty_terms):
+    """
+    Maximize the spectral purity of heralded photons with the constraint that parameters are elements
+    of Lie algebra of the propagator.
+
+    Args:
+        theta (array[float]): problem parameters. Length is 2*size
+        size (int): length of pump vector
+        alpha (float): constant including power of pump, group velocity of all modes, etc.
+        H [float]: matrix containing the elements that are not in the integral in the dynamics equations
+        l (float): length of the waveguide
+        omega (array[float]): frequency domain of the pump
+        sigma (float): weight of the penalty
+        optimizer (abc.ABCMeta): optimizer used to effect gradient descent
+        penalty_terms [float]: penalty weights for constraints
+    returns:
+        float: value of the loss when using penalty method
+    """
+    for i in range()
