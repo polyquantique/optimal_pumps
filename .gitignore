@@ -1,3 +1,6 @@
-.ipynb_checkpoints
-.vs
+**/.ipynb_checkpoints*
+**/.vs*
 Pipfile
+__pycache__
+.conda
+.pytest_cache

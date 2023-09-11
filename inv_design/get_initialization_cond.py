@@ -30,7 +30,7 @@ def get_constants(vp, l, wi, wf, Np, alpha_phase, N = 401):
     G = jnp.diag((1/vs - 1/vp)*x)
     H = jnp.diag((1/vi - 1/vp)*x)
     return alpha, G, H
-def get_initialization_array(init_params, vp, l, wi, wf, Np, method = "hermite", N=401):
+def get_initialization_array(init_params, wi, wf, method = "hermite", N=401):
     """
     Gives array that will initialize the pump for backpropagation. Depending
     on the method, different types of initialization parameters must be used.
@@ -52,7 +52,6 @@ def get_initialization_array(init_params, vp, l, wi, wf, Np, method = "hermite",
     returns:
         array[complex]: initial pump guess
     """
-    alpha, G, H = get_constants(vp, l, wi, wf, Np, N)
     a = []
     if method == "hermite":
         order, amplitude, width, phase = init_params
