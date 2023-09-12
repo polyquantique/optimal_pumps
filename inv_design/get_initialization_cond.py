@@ -42,11 +42,8 @@ def get_initialization_array(init_params, wi, wf, method = "hermite", N=401):
                         width and complex phase must be contained in init_params
             -"constant": initialize a constant pump with amplitude equal to init_params
         init_params(list): list of initialization parameters specific to each method parameters
-        vp(float): pump group velocity
-        l(float): length of the waveguide
         wi(float): starting frequency difference from center frequency
         wf(float): ending frequency difference from center frequency
-        Np(float): initial power of the pump
         N(int): resolution of the F matrix
         
     returns:
