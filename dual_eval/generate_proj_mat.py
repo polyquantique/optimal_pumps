@@ -12,17 +12,19 @@ def diag_proj_unity(N_omega, N_proj, real = True):
         real(bool): True if the the diagonals have 1. False if they have i 
 
     returns:
-        a[[complex64]]: List of projection matrices 
-        b[[complex64]]: List of Hermitian conjugate of projection matrices
+        a[[complex64]]: List of hermitian projection matrices
+        b[[complex64]]
     """
-    zero = N_proj//2
-    if real == True:
-        proj_matrices = [sparse.csr_matrix(np.eye(N_omega, k= i - zero).astype("complex64")) for i in range(N_proj)]
-        proj_matrices_conj = [sparse.csr_matrix(np.eye(N_omega, k= zero - i).astype("complex64")) for i in range(N_proj)]
-    else:
-        proj_matrices = [sparse.csr_matrix(1.j*np.eye(N_omega, k= i - zero)) for i in range(N_proj)]
-        proj_matrices_conj = [sparse.csr_matrix(-1.j*np.eye(N_omega, k= zero - i).astype("complex64")) for i in range(N_proj)]
-    return proj_matrices, proj_matrices_conj
+    hermitian_proj_matrices = []
+    antiherm_proj_matrices = []
+    for i in range(N_proj):
+        half_projection = sparse.csr_matrix(np.eye(N_omega, k= i).astype("complex64"))
+        antiherm_proj_matrices.append(1.j*half_projection + 1.j*half_projection.T)
+        if real == True:
+            hermitian_proj_matrices.append(half_projection + half_projection.T)
+        else:
+            hermitian_proj_matrices.append(1.j*half_projection - 1.j*half_projection.T)
+    return hermitian_proj_matrices, antiherm_proj_matrices
 
 def element_proj_unity(N_omega, real = True):
     """
@@ -34,24 +36,23 @@ def element_proj_unity(N_omega, real = True):
         real(bool): True if the the diagonals have 1. False if they have i 
 
     returns:
-        a[[complex64]]: List of projection matrices 
-        b[[complex64]]: List of Hermitian conjugate of projection matrices
+        a[[complex64]]: List of Hermitian projection matrices 
+        b[[complex64]]: List of anti-Hermitian projection matrices
     """
     proj_matrices = []
-    proj_matrices_conj = []
+    conj_proj_matrices = []
     for i in range(N_omega):
-        for j in range(N_omega):
-            proj = np.zeros((N_omega, N_omega)).astype("complex64")
-            proj_conj = np.zeros((N_omega, N_omega)).astype("complex64")
+        for j in range(i):
+            proj_mat = np.zeros((N_omega, N_omega)).astype("complex64")
+            proj_mat[i][j] = 1
+            proj_antiherm = 1.j*proj_mat + 1.j*proj_mat.T
             if real == True:
-                proj[i][j] = 1
-                proj_conj[j][i] = 1
+                proj_herm = proj_mat + proj_mat.T
             else:
-                proj[i][j] = 1.j
-                proj_conj[j][i] = -1.j
-            proj_matrices.append(sparse.csr_matrix(proj))
-            proj_matrices_conj.append(sparse.csr_matrix(proj_conj))
-    return proj_matrices, proj_matrices_conj
+                proj_herm = 1.j*proj_mat - 1.j*proj_mat.T
+            proj_matrices.append(sparse.csr_matrix(proj_herm))
+            conj_proj_matrices.append(sparse.csr_matrix(conj_proj_matrices))
+    return proj_matrices, conj_proj_matrices
 
 def get_green_functions(omega, vp, z):
     """
