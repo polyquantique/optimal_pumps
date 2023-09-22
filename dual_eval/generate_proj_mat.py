@@ -1,6 +1,20 @@
 import numpy as np
 import scipy.sparse as sparse
 
+def basic_proj(N_omega):
+    """
+    Most basic projection. The Hermitian is the identity and the 
+    skew-Hermitian is the identity times sqrt(-1).
+    
+    Args:
+        N_omega(int): The size of discretized frequency domain
+
+    returns:
+        a[[complex64]]: Hermitian projection matrix
+        b[[complex64]]: Skew-Hermitian projection matrix
+    """
+    return sparse.csr_matrix(np.eye(N_omega).astype("complex64")), sparse.csr_matrix(1.j*np.eye(N_omega))
+
 def diag_proj_unity(N_omega, N_proj, real = True):
     """
     Gives a list of projection matrices that have 1 or i on 
@@ -13,7 +27,7 @@ def diag_proj_unity(N_omega, N_proj, real = True):
 
     returns:
         a[[complex64]]: List of hermitian projection matrices
-        b[[complex64]]
+        b[[complex64]]: List of skew-Hermitian projection matrices
     """
     hermitian_proj_matrices = []
     antiherm_proj_matrices = []
