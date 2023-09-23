@@ -39,79 +39,57 @@ def get_proj_quad_basic(N_omega, N_z):
         a[[complex64]]: List of Hermitian projection matrices
         b[[complex64]]: List of skew-Hermitian projection matrices
     """
+    low_dim_proj, conj_low_dim_proj = proj.basic_proj(N_omega)
     herm_list_proj = []
     skew_herm_list_proj = []
-    for i in range(3*N_z):
-        herm_proj, skew_herm_proj = proj.basic_proj(N_omega)
-    return
+    for k in range(3*N_z):
+        zero_right = sparse.csr_matrix(((3*N_z + 1)*N_omega, N_omega))
+        zero_left_lower = sparse.csr_matrix((N_omega, 3*N_z*N_omega))
+        low_dim_proj.resize(((3*N_z - k)*N_omega, (3*N_z - k)*N_omega))
+        conj_low_dim_proj.resize(((3*N_z - k)*N_omega, (3*N_z - k)*N_omega))
+        if k == 0:
+            zero_left = sparse.vstack([low_dim_proj, zero_left_lower])
+            zero_left_antiherm = sparse.vstack([conj_low_dim_proj, zero_left_lower])
+            zero = sparse.hstack([zero_left, zero_right])
+            zero_conj = sparse.hstack([zero_left_antiherm, zero_right])
+            herm_list_proj.append(zero)
+            skew_herm_list_proj.append(zero_conj)
+        else:
+            left_upper_corner_zero = sparse.csr_matrix((k*N_omega,k*N_omega))
+            left_lower_corner_zero = sparse.csr_matrix(((3*N_z - k)*N_omega, k*N_omega))
+            right_upper_corner_zero = sparse.csr_matrix((k*N_omega, (3*N_z - k)*N_omega))
+            right_mat = sparse.vstack([right_upper_corner_zero, low_dim_proj])
+            right_mat_conj = sparse.vstack([right_upper_corner_zero, conj_low_dim_proj])
+            left_mat = sparse.vstack([left_upper_corner_zero, left_lower_corner_zero])
+            proj_mat = sparse.hstack([left_mat, right_mat])
+            antiherm_proj_mat = sparse.hstack([left_mat, right_mat_conj])
+            proj_mat = sparse.vstack([proj_mat, zero_left_lower])
+            proj_mat = sparse.hstack([proj_mat, zero_right])
+            antiherm_proj_mat = sparse.vstack([antiherm_proj_mat, zero_left_lower])
+            antiherm_proj_mat = sparse.hstack([antiherm_proj_mat, zero_right])
+            herm_list_proj.append(proj_mat)
+            skew_herm_list_proj.append(antiherm_proj_mat)
+    return herm_list_proj, skew_herm_list_proj
 
-def get_dynamics_matrices(N_z, N_omega, N_proj, omega, vp, z, proj_type = "diagonal", real = True):
+def get_dynamics_matrices(N_omega, omega, vp, z):
     """
-    Gives the off-diagonal block matrices describing the dynamics of the problem
-
-
-    """
-    hermitian_proj, antiherm_proj = get_lin_proj_mat(N_z, N_omega, N_proj, proj_type = "diagonal", real = True)
-    green_f = proj.get_green_functions(omega, vp, z)
-    
-    return
-# Todo: Change get_lin_proj_mat to quad_proj_mid
-def get_lin_proj_mat(N_z, N_omega, N_proj, proj_type = "diagonal", real = True):
-    """
-    Gives a set of matrices of size (3*N_z + 1)*N_omega \times\ (3*N_z + 1)*N_omega
-    that are the projection matrices, but scaled to the dimension containing all of
-    the variables
+    Gives a list of off-diagonal block matrices describing the dynamics of the problem.
+    The vertical block matrices are multiplied by Hermitian projections and the horizontal
+    block matrices multiplied by anti-Hermitian projections.
 
     Args:
         N_z(int): Size of the vector z
         N_omega(int): Size of the discretized frequency domain
-        N_proj(int): Number of projections
-        proj_type(string): The type of projection needed. 2 are supported for now:
-            - diagonal: projection matrices are on small diagonals
-            - element: projection is on every element of the matrix
-        real(bool): True if the the diagonals have 1. False if they have i 
+        omega[float]: discretized frequency domain
+        vp(float): pump group velocity
+        z[float]: discretized position arguments of waveguide
 
     returns:
-        a[[complex64]]: List of matrices containing projection matrices for
-                        each block of variables
+        [[complex64]]: List of quadratic terms for the dynamics of the problem
     """
-    if proj_type == "diagonal":
-        proj_list, conj_proj_list = proj.diag_proj_unity(N_omega, N_proj, real)
-    elif proj_type == "element":
-        proj_list, conj_proj_list = proj.element_proj_unity(N_omega, real)
-    proj_mat_diff_proj = []
-    proj_mat_diff_proj_antiherm = [] 
-    for j in range(len(proj_list)):
-        proj_mat_for_diff_z = []
-        proj_mat_antiherm_for_diff_z = []
-        # The size of the matrix sould be 3*N_z + 1...
-        for k in range(3*N_z):
-            zero_right = sparse.csr_matrix(((3*N_z + 1)*N_omega, N_omega))
-            zero_left_lower = sparse.csr_matrix((N_omega, 3*N_z*N_omega))
-            proj_list[j].resize(((3*N_z - k)*N_omega, (3*N_z - k)*N_omega))
-            conj_proj_list[j].resize(((3*N_z - k)*N_omega, (3*N_z - k)*N_omega))
-            if k == 0:
-                zero_left = sparse.vstack([proj_list[j], zero_left_lower])
-                zero_left_antiherm = sparse.vstack([conj_proj_list[j], zero_left_lower])
-                zero = sparse.hstack([zero_left, zero_right])
-                zero_conj = sparse.hstack([zero_left_antiherm, zero_right])
-                proj_mat_for_diff_z.append(zero)
-                proj_mat_antiherm_for_diff_z.append(zero_conj)
-            else:
-                left_upper_corner_zero = sparse.csr_matrix((k*N_omega,k*N_omega))
-                left_lower_corner_zero = sparse.csr_matrix(((3*N_z - k)*N_omega, k*N_omega))
-                right_upper_corner_zero = sparse.csr_matrix((k*N_omega, (3*N_z - k)*N_omega))
-                right_mat = sparse.vstack([right_upper_corner_zero, proj_list[j]])
-                right_mat_conj = sparse.vstack([right_upper_corner_zero, conj_proj_list[j]])
-                left_mat = sparse.vstack([left_upper_corner_zero, left_lower_corner_zero])
-                proj_mat = sparse.hstack([left_mat, right_mat])
-                antiherm_proj_mat = sparse.hstack([left_mat, right_mat_conj])
-                proj_mat = sparse.vstack([proj_mat, zero_left_lower])
-                proj_mat = sparse.hstack([proj_mat, zero_right])
-                antiherm_proj_mat = sparse.vstack([antiherm_proj_mat, zero_left_lower])
-                antiherm_proj_mat = sparse.hstack([antiherm_proj_mat, zero_right])
-                proj_mat_for_diff_z.append(proj_mat)
-                proj_mat_antiherm_for_diff_z.append(antiherm_proj_mat)
-        proj_mat_diff_proj.append(proj_mat_for_diff_z)
-        proj_mat_diff_proj_antiherm.append(proj_mat_antiherm_for_diff_z)
-    return proj_mat_diff_proj, proj_mat_diff_proj_antiherm
+    herm_mat_mul, anti_herm_mat_mul = proj.matmul_green_f_basic_proj(omega, vp, z, N_omega)
+    N_z = len(z)
+    for i in range(N_z):
+        for j in range(i):
+            used_herm_matmul = herm_mat_mul[i:]
+    return
