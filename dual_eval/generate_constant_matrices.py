@@ -89,7 +89,23 @@ def get_dynamics_matrices(N_omega, omega, vp, z):
     """
     herm_mat_mul, anti_herm_mat_mul = proj.matmul_green_f_basic_proj(omega, vp, z, N_omega)
     N_z = len(z)
-    for i in range(N_z):
-        for j in range(i):
-            used_herm_matmul = herm_mat_mul[i:]
-    return
+    top = sparse.csr_matrix((3*N_z*N_omega, (3*N_z + 1)*N_omega))
+    left = sparse.csr_matrix(((3*N_z + 1)*N_omega, 3*N_z*N_omega))
+    dynamics_matrices = []
+    for i in range(N_z - 1):
+        horiz_low_right = herm_mat_mul[i]
+        vert_low_right = anti_herm_mat_mul[i].conj().T
+        horiz_low_left = sparse.csr_matrix((N_omega, (3*N_z - i - 1)*N_omega))
+        vert_top_right = sparse.csr_matrix(((3*N_z - i - 1)*N_omega, N_omega))
+        if i > 0:
+            for j in range(i):
+                horiz_low_right = sparse.hstack([horiz_low_right, herm_mat_mul[i - j]])
+                vert_low_right = sparse.vstack([vert_low_right, herm_mat_mul[i - j].conj().T])
+        horiz_low_right = sparse.hstack([horiz_low_right, sparse.csr_matrix((N_omega, N_omega))])
+        vert_low_right = sparse.vstack([vert_low_right, sparse.csr_matrix((N_omega, N_omega))])
+        horiz_low = sparse.hstack([horiz_low_left, horiz_low_right])
+        vert_right = sparse.vstack([vert_top_right, vert_low_right])
+        horiz = sparse.vstack([top, horiz_low])
+        vert = sparse.hstack([left, vert_right])
+        dynamics_matrices.append(vert + horiz)
+    return dynamics_matrices
