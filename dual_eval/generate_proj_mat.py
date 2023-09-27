@@ -114,6 +114,6 @@ def matmul_green_f_basic_proj(omega, vp, z, N_omega):
     herm_mat_mul = []
     anti_mat_mul = []
     for i in range(N_z):
-        herm_mat_mul.append(green_f[i]@herm_proj)
-        anti_mat_mul.append(green_f[i]@antiherm_proj)
+        herm_mat_mul.append(green_f[i]@herm_proj.T)
+        anti_mat_mul.append(green_f[i]@antiherm_proj.T)
     return herm_mat_mul, anti_mat_mul

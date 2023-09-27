@@ -68,15 +68,21 @@ def get_proj_quad_basic(N_omega, N_z):
             skew_herm_list_proj.append(antiherm_proj_mat)
     return herm_list_proj, skew_herm_list_proj
 
-def proj_dynamics_mat_lower_propagator(omega, z, dynamics):
+def proj_dynamics_mat_lower_propagator(omega, z, dynamics, prop_sign):
     """
     Projects a list of dynamics matrices (Green's function multiplied by projection matrices)
     into the dimension that is suitable for dual evaluation.
 
     Args:
-        N_omega(int): 
-        N_z[float32]: 
-        dynamics[[complex64]]: 
+        N_omega(int): number of discretized frequency domain elements
+        N_z[float32]: number of discretized space domain elements
+        dynamics[[complex64]]: list containing the matrices in lower dimensions describing
+            the dynamics
+        prop_sign(str): Can be of 2 values:
+                            - "plus": the high dimension matrix output will be for the 
+                                propagator associated with addition
+                            - "minus": the high dimension matrix output will be for the 
+                                propagator associated with substraction
 
     returns:
         [[complex64]]: matrix representing the dynamics for the given list of matrices.
@@ -88,20 +94,26 @@ def proj_dynamics_mat_lower_propagator(omega, z, dynamics):
     left = sparse.csr_matrix(((3*N_z + 1)*N_omega, 3*N_z*N_omega))
     horiz_low_right = sparse.csr_matrix((N_omega, 0))
     vert_low_right = sparse.csr_matrix((0, N_omega))
-    horiz_low_left = sparse.csr_matrix((N_omega, (3*N_z - index)*N_omega))
-    vert_top_right = sparse.csr_matrix(((3*N_z - index)*N_omega, N_omega))
+    if prop_sign == "plus":
+        displacement = 0
+    elif prop_sign == "minus":
+        displacement = N_z
+    else:
+        raise ValueError("Invalid propagator sign")
+    horiz_low_left = sparse.csr_matrix((N_omega, (2*N_z + displacement - index)*N_omega))
+    vert_top_right = sparse.csr_matrix(((2*N_z + displacement - index)*N_omega, N_omega))
     for i in range(index):
         horiz_low_right = sparse.hstack([horiz_low_right, dynamics[index - i - 1]])
         vert_low_right = sparse.vstack([vert_low_right, dynamics[index - i - 1].conj().T])
-    horiz_low_right = sparse.hstack([horiz_low_right, sparse.csr_matrix((N_omega, N_omega))])
-    vert_low_right = sparse.vstack([vert_low_right, sparse.csr_matrix((N_omega, N_omega))])
+    horiz_low_right = sparse.hstack([horiz_low_right, sparse.csr_matrix((N_omega, (N_z - displacement + 1)*N_omega))])
+    vert_low_right = sparse.vstack([vert_low_right, sparse.csr_matrix(((N_z - displacement + 1)*N_omega, N_omega))])
     horiz_low = sparse.hstack([horiz_low_left, horiz_low_right])
     vert_right = sparse.vstack([vert_top_right, vert_low_right])
     horiz = sparse.vstack([top, horiz_low])
     vert = sparse.hstack([left, vert_right])
     return horiz, vert
 
-def get_dynamics_matrices(omega, vp, z):
+def get_dynamics_matrices(omega, vp, z, prop_sign):
     """
     Gives a list of off-diagonal block matrices describing the dynamics of the problem.
     The vertical block matrices are multiplied by Hermitian projections and the horizontal
@@ -111,6 +123,11 @@ def get_dynamics_matrices(omega, vp, z):
         omega[float]: discretized frequency domain
         vp(float): pump group velocity
         z[float]: discretized position arguments of waveguide
+        prop_sign(str): Can be of 2 values:
+                            - "plus": the high dimension matrix output will be for the 
+                                propagator associated with addition
+                            - "minus": the high dimension matrix output will be for the 
+                                propagator associated with substraction
 
     returns:
         [[complex64]]: List of quadratic terms for the dynamics of the problem
@@ -122,9 +139,9 @@ def get_dynamics_matrices(omega, vp, z):
     imag_dynamics_matrices = []
     for i in range(1, N_z + 1):
         used_herm_dynamics = herm_mat_mul[:i]
-        herm_mat_for_z_horiz, herm_mat_for_z_vert = proj_dynamics_mat_lower_propagator(omega, z, used_herm_dynamics)
+        herm_mat_for_z_horiz, herm_mat_for_z_vert = proj_dynamics_mat_lower_propagator(omega, z, used_herm_dynamics, prop_sign)
         herm_mat_for_z = herm_mat_for_z_horiz + herm_mat_for_z_vert
-        anti_herm_mat_for_z_horiz, anti_herm_mat_for_z_vert = proj_dynamics_mat_lower_propagator(omega, z, used_herm_dynamics)
+        anti_herm_mat_for_z_horiz, anti_herm_mat_for_z_vert = proj_dynamics_mat_lower_propagator(omega, z, used_herm_dynamics, prop_sign)
         anti_herm_mat_for_z = anti_herm_mat_for_z_horiz - anti_herm_mat_for_z_vert
         real_dynamics_matrices.append(herm_mat_for_z)
         imag_dynamics_matrices.append(anti_herm_mat_for_z)
