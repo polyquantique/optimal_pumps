@@ -1,0 +1,71 @@
+import numpy as np
+import scipy.sparse as sparse
+
+def diag_proj_unity(N_omega, N_proj, real = True):
+    """
+    Gives a list of projection matrices that have 1 or i on 
+    a diagonal and 0 everywhere else
+
+    Args:
+        N_omega(int): The size of discretized frequency domain
+        N_proj(int): The number of projection matrices
+        real(bool): True if the the diagonals have 1. False if they have i 
+
+    returns:
+        a[[complex64]]: List of linear projection matrices for real constraints
+        b[[complex64]]: List of linear projection matrices for imaginary constraints
+    """
+    hermitian_proj_matrices = []
+    antiherm_proj_matrices = []
+    for i in range(N_proj):
+        half_projection = sparse.csc_matrix(np.eye(N_omega, k= i).astype("complex64"))
+        antiherm_proj_matrices.append(1.j*half_projection + 1.j*half_projection.T)
+        if real == True:
+            hermitian_proj_matrices.append(half_projection)
+        else:
+            hermitian_proj_matrices.append(1.j*half_projection)
+    return hermitian_proj_matrices, antiherm_proj_matrices
+
+def element_proj_unity(N_omega, real = True):
+    """
+    Gives a list of projection matrices that have 1 or i at
+    one position of the matrix and 0 everywhere else
+
+    Args:
+        N_omega(int): The size of discretized frequency domain
+        real(bool): True if the the diagonals have 1. False if they have i 
+
+    returns:
+        a[[complex64]]: List of Hermitian projection matrices 
+        b[[complex64]]: List of anti-Hermitian projection matrices
+    """
+    proj_matrices = []
+    conj_proj_matrices = []
+    for i in range(N_omega):
+        for j in range(i):
+            proj_mat = np.zeros((N_omega, N_omega)).astype("complex64")
+            proj_mat[i][j] = 1
+            proj_antiherm = 1.j*proj_mat + 1.j*proj_mat.T
+            if real == True:
+                proj_herm = proj_mat + proj_mat.T
+            else:
+                proj_herm = 1.j*proj_mat - 1.j*proj_mat.T
+            proj_matrices.append(sparse.csc_matrix(proj_herm))
+            conj_proj_matrices.append(sparse.csc_matrix(conj_proj_matrices))
+    return proj_matrices, conj_proj_matrices
+
+def get_green_functions(omega, vp, z):
+    """
+    Gives the Green's function in frequency domain.
+
+    Args:
+        omega[float]: discretized frequency domain
+        vp(float): pump group velocity
+        z[float]: discretized position arguments of waveguide
+
+    returns:
+        [[complex]]: list containing the Green's function evaluated at
+                    different points of waveguide
+    """
+    green_f = [sparse.csc_matrix(np.diag(np.exp(1.j*(omega)*z[i]))) for i in range(len(z))]
+    return green_f
