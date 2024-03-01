@@ -2,21 +2,41 @@ import numpy as np
 import scipy.sparse as sparse
 
 def mat_to_vec(matrix):
+    """
+    Stack every column of matrix
+    """
     vec = []
     for i in range(len(matrix)):
-        vec += list(matrix[i])
+        vec += list(matrix[:,i])
     return sparse.csc_array(vec).T
 
+def vec_to_mat(vect):
+    """
+    Make a NxN size vector into a matrix
+    """
+    mat_dim = int(np.sqrt(len(vect)))
+    mat = np.zeros((mat_dim, mat_dim)).astype("complex128")
+    for i in range(len(mat)):
+        mat[i] = vect[i*mat_dim:(i + 1)*mat_dim]
+    mat = mat.T
+    return mat
+
 def diag_mat(N_omega, N_z, proj):
+    """
+    List of diagonal matrices with fully sized proj
+    """
     diag_mats = []
     for i in range(2*N_z + 1):
-        full_proj = sparse.kron(sparse.eye(N_omega), proj)
+        full_proj = sparse.csc_matrix(sparse.kron(sparse.eye(N_omega), 0.5*(proj + proj.conj().T)))
         full_proj.resize(((2*N_z + 1 - i)*(N_omega**2) + 2*N_omega - 1, (2*N_z + 1 - i)*(N_omega**2) + 2*N_omega - 1))
         full_proj = sparse.bmat([[sparse.csc_matrix((i*(N_omega**2), i*(N_omega**2))), sparse.csc_matrix((i*(N_omega**2), (2*N_z + 1 - i)*(N_omega**2) + 2*N_omega - 1))],[sparse.csc_matrix(((2*N_z + 1 - i)*(N_omega**2) + 2*N_omega - 1, i*(N_omega**2))), full_proj]])
         diag_mats.append(full_proj)
     return diag_mats
 
 def vectorized_proj(N_omega, N_z, proj):
+    """
+    Vectorize the projection matrix and return list of vectors
+    """
     vect_proj_list = []
     for i in range(2*N_z + 1):
         vect_proj = mat_to_vec(proj)
@@ -50,12 +70,12 @@ def dynamics_W(omega, z, proj, vec_to_hankel, prop_sign):
     dynamics_imag_list = [sparse.csc_matrix(((2*N_z + 1)*(N_omega**2) + 2*N_omega - 1, (2*N_z + 1)*(N_omega**2) + 2*N_omega - 1))]
     for i in range(1, N_z):
         green_fs = get_green_f(omega, z[:i + 1])
-        projected_green_fs = [sparse.csc_matrix(green_fs[i]@proj) for i in range(len(green_fs))]
+        green_fs.reverse()
+        green_fs[0] = green_fs[0]/2
+        green_fs[-1] = green_fs[-1]/2
+        projected_green_fs = [sparse.csc_matrix(green_fs[i]@proj.conj()) for i in range(len(green_fs))]
         full_proj_green_fs = [delta_z*sparse.kron(sparse.eye(N_omega), projected_green_fs[i]) for i in range(len(green_fs))]
         rect_proj_green_fs = [vec_to_hankel.conj().T@full_proj_green_fs[i] for i in range(len(green_fs))]
-        rect_proj_green_fs.reverse()
-        rect_proj_green_fs[0] = 0.5*rect_proj_green_fs[0]
-        rect_proj_green_fs[-1] = 0.5*rect_proj_green_fs[-1]
         # Good until here
         stacked_dynamics = sparse.hstack(rect_proj_green_fs)
         if prop_sign == "plus":
@@ -63,17 +83,38 @@ def dynamics_W(omega, z, proj, vec_to_hankel, prop_sign):
             stacked_dynamics = sparse.hstack([sparse.csc_matrix((2*N_omega - 1, N_omega**2)), stacked_dynamics])
             stacked_dynamics = sparse.vstack([sparse.csc_matrix(((2*N_z + 1)*(N_omega**2), (2*N_z + 1)*(N_omega**2) + 2*N_omega - 1)), stacked_dynamics])
             dynamics_real_list.append(0.5*(stacked_dynamics + stacked_dynamics.conj().T))
-            dynamics_imag_list.append(-0.5*1.j*(stacked_dynamics - stacked_dynamics.conj().T))
+            dynamics_imag_list.append(0.5*(-1.j*stacked_dynamics + 1.j*(stacked_dynamics).conj().T))
         if prop_sign == "minus":
             stacked_dynamics.resize((2*N_omega - 1, (N_z*(N_omega**2) + 2*N_omega - 1)))
             stacked_dynamics = sparse.hstack([sparse.csc_matrix((2*N_omega - 1, (N_z + 1)*(N_omega**2))), stacked_dynamics])
             stacked_dynamics = sparse.vstack([sparse.csc_matrix(((2*N_z + 1)*(N_omega**2), (2*N_z + 1)*(N_omega**2) + 2*N_omega - 1)), stacked_dynamics])
             dynamics_real_list.append(-0.5*(stacked_dynamics + stacked_dynamics.conj().T))
-            dynamics_imag_list.append(0.5*1.j*(stacked_dynamics  - stacked_dynamics.conj().T))
+            dynamics_imag_list.append(0.5*(1.j*stacked_dynamics  + (1.j*stacked_dynamics).conj().T))
     return dynamics_real_list, dynamics_imag_list
 
+def quad_symplectic(N_omega, N_z, proj):
+    """
+    Get full scaled symplectic matrices for the given projection matrix
+    """
+    # Symplective constraints
+    real_symplectic = []
+    imag_symplectic = []
+    real_cst_proj = -0.5*np.trace(proj + proj.conj().T)
+    for i in range(N_z):
+        proj_copy = sparse.kron(sparse.eye(N_omega), sparse.csc_matrix(proj))
+        proj_copy.resize(((2*N_z - i)*(N_omega**2) + 2*N_omega - 1,(N_z - i)*(N_omega**2) + 2*N_omega - 1))
+        proj_copy = sparse.bmat([[sparse.csc_matrix(((i + 1)*(N_omega**2), (i + 1 + N_z)*(N_omega**2))), sparse.csc_matrix(((i + 1)*(N_omega**2), (N_z - i)*(N_omega**2) + 2*N_omega - 1))],
+                      [sparse.csc_matrix(((2*N_z - i)*(N_omega**2) + 2*N_omega - 1,(N_z + 1 + i)*(N_omega**2))), proj_copy]])
+        real_proj = 0.5*(proj_copy + proj_copy.conj().T)
+        real_proj = sparse.bmat([[real_proj, sparse.csc_matrix(((2*N_z + 1)*(N_omega**2) + 2*N_omega - 1,1))],[sparse.csc_matrix((1,(2*N_z + 1)*(N_omega**2) + 2*N_omega - 1)), real_cst_proj*sparse.eye(1)]])
+        imag_proj = 0.5*(1.j*proj_copy + (1.j*proj_copy).conj().T)
+        imag_proj = sparse.bmat([[imag_proj, sparse.csc_matrix(((2*N_z + 1)*(N_omega**2) + 2*N_omega - 1,1))],[sparse.csc_matrix((1,(2*N_z + 1)*(N_omega**2) + 2*N_omega - 1)), sparse.csc_matrix((1, 1))]])
+        real_symplectic.append(real_proj)
+        imag_symplectic.append(imag_proj)
+    return real_symplectic, imag_symplectic
+
 def obj_f_sdp_mat(N_omega, N_z, n):
-    diags = diag_mat(N_omega, N_z, np.eye(N_omega))
+    diags = diag_mat(N_omega, N_z, sparse.eye(N_omega))
     Q_obj_f = -diags[0]
     P_obj_f = sparse.csc_matrix(((2*N_z + 1)*(N_omega**2) + 2*N_omega - 1,1))
     sdp_mat = sparse.bmat([[Q_obj_f, P_obj_f],[P_obj_f.conj().T, n**2]])
@@ -88,6 +129,7 @@ def J_def_sdp_mat(N_omega, N_z, proj):
     sdp_mat = sparse.bmat([[Q_J_def, P_J_def],[P_J_def.conj().T, cst_J_def]])
     return sdp_mat
 
+# Need verification
 def dynamics_mat(omega, z, proj):
     N_omega = len(omega)
     N_z = len(z)
