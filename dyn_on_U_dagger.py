@@ -39,7 +39,7 @@ def get_lin_matrices(N_z, N_omega, proj):
         lin.append(sparse.csc_matrix(lin_mat))
     return lin
 
-def get_dynamics(omega, z, n, proj, prop_sign):
+def get_dynamics(omega, z, n, proj, prop_sign, pump_power):
     """
     Gives the SDR matrices for plus or minus propagator dynamics constraints
     """
@@ -59,7 +59,7 @@ def get_dynamics(omega, z, n, proj, prop_sign):
             green_fs[0] = green_fs[0]/2
             green_fs[-1] = green_fs[-1]/2
             real_weighted_green_f = [delta_z*real_proj.conj().T@green_fs[i].conj().T for i in range(len(green_fs))]
-            quad = sparse.csc_matrix(np.vstack(real_weighted_green_f))
+            quad = pump_power*sparse.csc_matrix(np.vstack(real_weighted_green_f))
             quad.resize(((2*N_z + 1)*N_omega, N_omega))
             quad = sparse.bmat([[sparse.csc_matrix(((2*N_z + 1)*N_omega, (2*N_z + 1)*N_omega)), sparse.csc_matrix((N_omega, N_omega))],
                                 [sparse.csc_matrix((N_omega, (2*N_z + 1)*N_omega)), quad]])
@@ -78,7 +78,7 @@ def get_dynamics(omega, z, n, proj, prop_sign):
             green_fs[0] = green_fs[0]/2
             green_fs[-1] = green_fs[-1]/2
             real_weighted_green_f = [delta_z*real_proj.conj().T@green_fs[i].conj().T for i in range(len(green_fs))]
-            quad = sparse.csc_matrix(np.vstack(real_weighted_green_f))
+            quad = pump_power*sparse.csc_matrix(np.vstack(real_weighted_green_f))
             quad.resize(((N_z + 1)*N_omega, N_omega))
             quad = -sparse.bmat([[sparse.csc_matrix(((N_z + 1)*N_omega, (2*N_z + 1)*N_omega)), sparse.csc_matrix(((N_z + 1)*N_omega, N_omega))],
                                 [sparse.csc_matrix(((N_z + 1)*N_omega, (2*N_z + 1)*N_omega)), quad]])
@@ -92,12 +92,12 @@ def get_dynamics(omega, z, n, proj, prop_sign):
                                                     [0.5*lin_imag.conj().T, sparse.csc_matrix((N_omega, N_omega))]]))
     return dynamics_real_list, dynamics_imag_list
 
-def get_dynamics_sdr(omega, z, n, proj):
+def get_dynamics_sdr(omega, z, n, proj, pump_power):
     """
     Gives SDR matrices for dynamics constraints
     """
-    real_plus, imag_plus = get_dynamics(omega, z, n, proj, "plus")
-    real_minus, imag_minus = get_dynamics(omega, z, n, proj, "minus")
+    real_plus, imag_plus = get_dynamics(omega, z, n, proj, "plus", pump_power)
+    real_minus, imag_minus = get_dynamics(omega, z, n, proj, "minus", pump_power)
     return real_plus, imag_plus, real_minus, imag_minus
 
 def sympl_constr_sdr(N_omega, N_z, proj, n):
@@ -190,7 +190,7 @@ def obj_f(N_omega, N_z):
     """
     Gives the matrix for the objective function
     """
-    lin = get_lin_matrices(N_z, N_omega, sparse.eye(N_omega))[N_z] - get_lin_matrices(N_z, N_omega, sparse.eye(N_omega))[2*N_z]
+    lin = 0.5*(get_lin_matrices(N_z, N_omega, sparse.eye(N_omega))[N_z] - get_lin_matrices(N_z, N_omega, sparse.eye(N_omega))[2*N_z])
     mat = sparse.bmat([[sparse.csc_matrix(((2*N_z + 2)*N_omega,(2*N_z + 2)*N_omega)), 0.5*lin],
                        [0.5*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]])
     return mat
@@ -269,10 +269,120 @@ def ineq_on_propagators(N_omega, N_z, Q_mat_list):
         real_mat_list.append(mat_real)
     return real_mat_list, imag_mat_list
 
-def ineq_real_quad_Q(N_omega, N_z, Q_mat_list):
+def obj_f_sdr(N_omega, N_z):
     """
-    Gives the inequality on the real part of the trace of difference between propagators
-    and quadratic of difference weighted by an unitary
+    Gives matrices to isolate the matrix in the objective function to make it
+    positive semidefinite
     """
-    
-    return
+    left_plus = sparse.eye(N_omega)
+    left_plus.resize(((N_z + 3)*N_omega, N_omega))
+    left_plus = sparse.vstack([sparse.csc_matrix((N_z*N_omega, N_omega)), left_plus])
+    left_minus = -sparse.eye(N_omega)
+    left_minus.resize((3*N_omega, N_omega))
+    left_minus = sparse.vstack([sparse.csc_matrix((2*N_z*N_omega, N_omega)), left_minus])
+    left = left_plus + left_minus
+    right = sparse.eye(N_omega)
+    right = sparse.vstack([sparse.csc_matrix(((2*N_z + 2)*N_omega, N_omega)), right])
+    quad_plus = 0.5*get_lin_matrices(N_z, N_omega, sparse.eye(N_omega))[N_z]
+    quad_plus.resize(((2*N_z + 3)*N_omega, N_omega))
+    quad_minus = 0.5*get_lin_matrices(N_z, N_omega, sparse.eye(N_omega))[2*N_z]
+    quad_minus.resize(((2*N_z + 3)*N_omega, N_omega))
+    return left, right, quad_plus, quad_minus
+
+def limit_pump_power(N_omega, N_z):
+    """
+    Constraint limiting the trace of beta dagger beta to be 1
+    """
+    quad = sparse.eye(N_omega)
+    quad = sparse.bmat([[sparse.csc_matrix(((2*N_z + 1)*N_omega,(2*N_z + 1)*N_omega)), sparse.csc_matrix(((2*N_z + 1)*N_omega, N_omega))],
+                        [sparse.csc_matrix((N_omega, (2*N_z + 1)*N_omega)), quad]])
+    mat = sparse.bmat([[quad, sparse.csc_matrix(((2*N_z + 2)*N_omega, N_omega))],
+                       [sparse.csc_matrix((N_omega, (2*N_z + 2)*N_omega)), -(1/N_omega)*sparse.eye(N_omega)]])
+    return mat
+
+def hankel_constr_list(N_omega):
+    """
+    Build list of matrices in N_omega dimension to make sure the pump is Hankel
+    """
+    first_list = list((np.linspace(1, N_omega - 2, N_omega - 2)).astype("int32"))
+    second_list = list((np.linspace(1, N_omega - 2, N_omega - 2)).astype("int32"))
+    second_list.reverse()
+    constr_anti_diags = first_list + [N_omega - 1] + second_list
+    prior_mats = []
+    after_mats = []
+    for position, nbr_constr in enumerate(constr_anti_diags):
+        for j in range(nbr_constr):
+            prior_mat = np.zeros((N_omega, N_omega))
+            after_mat = np.zeros((N_omega, N_omega))
+            if position < N_omega - 2:
+                prior_mat[j, nbr_constr - j] = 1
+                after_mat[j + 1, nbr_constr - j - 1] = 1
+            elif position == N_omega - 2:
+                prior_mat[j, nbr_constr - j] = 1
+                after_mat[j + 1, nbr_constr - j - 1] = 1
+            else:
+                prior_mat[position - (N_omega - 2 - j), N_omega - 1 - j] = 1
+                after_mat[position - (N_omega - 3 - j), N_omega - 2 - j] = 1
+            prior_mats.append(prior_mat)
+            after_mats.append(after_mat)
+    return prior_mats, after_mats
+
+def constr_hankel_sdr(N_omega, N_z):
+    """
+    Gives the matrices telling the pump to be Hankel in SDR frame
+    """
+    prior_mats, after_mats = hankel_constr_list(N_omega)
+    mat_list = []
+    for i in range(len(prior_mats)):
+        prior_lin = get_lin_matrices(N_z, N_omega, prior_mats[i])[2*N_z + 1]
+        after_lin = -get_lin_matrices(N_z, N_omega, after_mats[i])[2*N_z + 1]
+        lin = prior_lin + after_lin
+        mat = sparse.bmat([[sparse.csc_matrix(((2*N_z + 2)*N_omega,(2*N_z + 2)*N_omega)), 0.5*lin],
+                           [0.5*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]])
+        mat_list.append(mat)
+    return mat_list
+
+def constr_obj_f_hermitian(N_omega, N_z, proj):
+    """
+    Gives SDR matrices to make sure the matrix in the objective function is Hermitian 
+    """
+    quad = sparse.csc_matrix(((2*N_z + 2)*N_omega,(2*N_z + 2)*N_omega))
+    cst = sparse.csc_matrix((N_omega, N_omega))
+    real_proj = proj.copy()
+    imag_proj = 1.j*proj.copy()
+    real_lin = get_lin_matrices(N_z, N_omega, real_proj - real_proj.conj().T)[N_z] - get_lin_matrices(N_z, N_omega, real_proj - real_proj.conj().T)[2*N_z] 
+    real_mat = sparse.bmat([[quad, real_lin],[real_lin.conj().T, cst]])
+    imag_lin = get_lin_matrices(N_z, N_omega, imag_proj - imag_proj.conj().T)[N_z] - get_lin_matrices(N_z, N_omega, imag_proj - imag_proj.conj().T)[2*N_z]
+    imag_mat = sparse.bmat([[quad, 0.5*imag_lin],[0.5*imag_lin.conj().T, cst]])
+    return real_mat, imag_mat
+
+def random_rank_one_mat(N_omega, nbr_elements_basis):
+    """
+    Gives a list of random vectors and first rank matrices associated with them
+    """
+    rand_mat = []
+    rand_vec_list = []
+    for i in range(nbr_elements_basis):
+        rand_vec = np.random.randint(-1, 2, (N_omega, )) + 1.j*np.random.randint(-1, 2, (N_omega, ))
+        rand_vec_list.append(rand_vec)
+        rand_mat.append(sparse.csc_matrix(np.outer(rand_vec, rand_vec.conj())))
+    return rand_vec_list, rand_mat
+
+def constr_semidefinite_obj_f(N_omega, N_z, rank_one_mat_list):
+    """
+    Gives list of matrices that give constraints that the matrix in objective function is 
+    positive semidefinite
+    """
+    real_mats = []
+    imag_mats = []
+    quad = sparse.csc_matrix(((2*N_z + 2)*N_omega,(2*N_z + 2)*N_omega))
+    for i in range(len(rank_one_mat_list)):
+        lin_real = get_lin_matrices(N_z, N_omega, rank_one_mat_list[i])[N_z] - get_lin_matrices(N_z, N_omega, rank_one_mat_list[i])[2*N_z]
+        lin_imag = get_lin_matrices(N_z, N_omega, 1.j*rank_one_mat_list[i])[N_z] - get_lin_matrices(N_z, N_omega, 1.j*rank_one_mat_list[i])[2*N_z]
+        mat_real = sparse.bmat([[quad, 0.5*lin_real],
+                                [0.5*lin_real.conj().T, sparse.csc_matrix((N_omega, N_omega))]])
+        mat_imag = sparse.bmat([[quad, 0.5*lin_imag],
+                                [0.5*lin_imag.conj().T, sparse.csc_matrix((N_omega, N_omega))]])
+        real_mats.append(mat_real)
+        imag_mats.append(mat_imag)
+    return real_mats, imag_mats

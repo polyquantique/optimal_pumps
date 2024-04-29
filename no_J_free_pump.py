@@ -162,7 +162,7 @@ def obj_f_sdr(N_omega, N_z, n):
     quad_U_minus = -sparse.eye(N_omega)
     quad_U_minus.resize(((2*N_z + 2)*N_omega, 2*N_omega))
     quad_U_minus = sparse.hstack([sparse.csc_matrix(((2*N_z + 2)*N_omega, 2*N_z*N_omega)), quad_U_minus])
-    quad = 0.5*(quad_U_plus + quad_U_minus + quad_U_plus.conj().T + quad_U_minus.conj().T)
+    quad = 0.25*(quad_U_plus + quad_U_minus + quad_U_plus.conj().T + quad_U_minus.conj().T)
     return sparse.bmat([[quad, sparse.csc_matrix(((2*N_z + 2)*N_omega, N_omega))], [sparse.csc_matrix((N_omega, (2*N_z + 2)*N_omega)), sparse.csc_matrix((N_omega, N_omega))]])
 
 def sdr_def_constr(N_omega, N_z, proj):
@@ -197,6 +197,22 @@ def get_standard_Q(N_omega):
     for i in range(2*N_omega):
         mat_list.append(sparse.csc_matrix(np.diag(np.exp(2*np.pi*1.j*np.random.random(N_omega)))))
     return mat_list
+
+def get_hermite_Q_list(omega, bandwidth, highest_order):
+    """
+    Gives list of unitary matrices that are the singular modes of propagators 
+    generated with pumps that are Hermite functions
+    """
+    N_omega = len(omega)
+    hermite_Q_list = []
+    delta_omega = np.abs(omega[1] - omega[0])
+    for i in range(highest_order):
+        pump_vec = scipy.special.hermite(i)(np.linspace(omega[0], omega[-1], 2*N_omega - 1))*np.exp(-(np.linspace(omega[0], omega[-1], 2*N_omega - 1)**2)*bandwidth)
+        pump = delta_omega*scipy.linalg.hankel(pump_vec[:N_omega], pump_vec[N_omega - 1:])
+        delta_k = 1.j*np.diag(omega)
+        V, _, W = scipy.linalg.svd(scipy.linalg.expm(delta_k + pump) - scipy.linalg.expm(delta_k - pump))
+        hermite_Q_list.append(V@W)
+    return hermite_Q_list
 
 def get_Q_list(N_omega, len_Q):
     """
@@ -245,7 +261,6 @@ def imag_obj_f(N_omega, N_z):
     quad = 0.25*(1.j*quad_U_plus + 1.j*quad_U_minus + (1.j*quad_U_plus).conj().T + (1.j*quad_U_minus).conj().T)
     return sparse.bmat([[quad, sparse.csc_matrix(((2*N_z + 2)*N_omega, N_omega))], [sparse.csc_matrix((N_omega, (2*N_z + 2)*N_omega)), sparse.csc_matrix((N_omega, N_omega))]])
 
-
 def constr_Q_cst(N_omega, N_z, Q_list):
     """
     Gives a list of constraints telling the imaginary part of Tr(B(U_+ - U_-)Q) is 0 for
@@ -278,14 +293,58 @@ def limit_pump_power(N_omega, N_z):
                        [sparse.csc_matrix((N_omega, (2*N_z + 2)*N_omega)), -(1/N_omega)*sparse.eye(N_omega)]])
     return mat
 
-def hankel_constr(N_omega, N_z):
+def hankel_constr_list(N_omega):
     """
-    Constraint making sure the pump is a Hankel matrix
+    Build list of matrices in N_omega dimension to make sure the pump is Hankel
     """
+    first_list = list((np.linspace(1, N_omega - 2, N_omega - 2)).astype("int32"))
+    second_list = list((np.linspace(1, N_omega - 2, N_omega - 2)).astype("int32"))
+    second_list.reverse()
+    constr_anti_diags = first_list + [N_omega - 1] + second_list
+    prior_mats = []
+    after_mats = []
+    for position, nbr_constr in enumerate(constr_anti_diags):
+        for j in range(nbr_constr):
+            prior_mat = np.zeros((N_omega, N_omega))
+            after_mat = np.zeros((N_omega, N_omega))
+            if position < N_omega - 2:
+                prior_mat[j, nbr_constr - j] = 1
+                after_mat[j + 1, nbr_constr - j - 1] = 1
+            elif position == N_omega - 2:
+                prior_mat[j, nbr_constr - j] = 1
+                after_mat[j + 1, nbr_constr - j - 1] = 1
+            else:
+                prior_mat[position - (N_omega - 2 - j), N_omega - 1 - j] = 1
+                after_mat[position - (N_omega - 3 - j), N_omega - 2 - j] = 1
+            prior_mats.append(prior_mat)
+            after_mats.append(after_mat)
+    return prior_mats, after_mats
+
+def constr_hankel_sdr(N_omega, N_z):
+    """
+    Gives the matrices telling the pump to be Hankel in SDR frame
+    """
+    prior_mats, after_mats = hankel_constr_list(N_omega)
     mat_list = []
-    constr_len = 2*sum(np.linspace(1, N_omega - 2, N_omega - 2)) + N_omega - 1
-    for i in range(constr_len):
-        prior_mat = np.zeros((N_omega, N_omega))
-        after_mat = np.zeros((N_omega, N_omega))
-        
-    return 
+    for i in range(len(prior_mats)):
+        prior_lin = get_lin_matrices(N_z, N_omega, prior_mats[i])[2*N_z + 1]
+        after_lin = -get_lin_matrices(N_z, N_omega, after_mats[i])[2*N_z + 1]
+        lin = prior_lin + after_lin
+        mat = sparse.bmat([[sparse.csc_matrix(((2*N_z + 2)*N_omega,(2*N_z + 2)*N_omega)), 0.5*lin],
+                           [0.5*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]])
+        mat_list.append(mat)
+    return mat_list
+
+def obj_f_psd(N_omega, N_z):
+    """
+    Gives matrices to get constraint that matrix in the objective function should be positive semi definite
+    """
+    right_side_plus = 0.5*get_lin_matrices(N_z, N_omega, sparse.eye(N_omega))[N_z]
+    right_side_plus.resize(((2*N_z + 3)*N_omega, N_omega))
+    right_side_minus = 0.5*get_lin_matrices(N_z, N_omega, sparse.eye(N_omega))[2*N_z]
+    right_side_minus.resize(((2*N_z + 3)*N_omega, N_omega))
+    left = get_lin_matrices(N_z, N_omega, sparse.eye(N_omega))[0]
+    left.resize(((2*N_z + 3)*N_omega, N_omega))
+    right = get_lin_matrices(N_z, N_omega, sparse.eye(N_omega))[N_z] - get_lin_matrices(N_z, N_omega, sparse.eye(N_omega))[2*N_z]
+    right.resize(((2*N_z + 3)*N_omega, N_omega))
+    return left, right, right_side_plus, right_side_minus
