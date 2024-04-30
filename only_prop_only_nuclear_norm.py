@@ -132,7 +132,7 @@ def sympl_constr_sdr(N_omega, N_z, proj, n):
     """
     real_symplectic = []
     imag_symplectic = []
-    real_cst_proj = -0.5*(proj + proj.conj().T).trace()
+    real_cst_proj = -0.5*np.trace((proj + proj.conj().T).toarray())
     for i in range(N_z - 1):
         proj_copy = proj.copy()
         proj_copy.resize(((2*N_z - i - 1)*N_omega, (N_z - i)*N_omega))
@@ -160,7 +160,8 @@ def photon_nbr_constr(N_omega, N_z, n):
 def lin_finite_diff_constr(z, N_omega, delta_k, n, beta_weight, project):
     """
     Gives the matrices to constraint the real and imaginary parts of the dynamics when
-    expressed as central finite difference for adding or substracting the pump
+    expressed as central finite difference for adding or substracting the pump of order of
+    accuracy of 3
     """
     terms = [1., 1.j]
     N_z = len(z)
@@ -172,9 +173,9 @@ def lin_finite_diff_constr(z, N_omega, delta_k, n, beta_weight, project):
         lin_pump = (1/np.sqrt(n))*get_lin_matrices(N_z, N_omega, proj)[-1]
         cst = (0.5/np.sqrt(n))*np.trace(proj.conj().T@delta_k + delta_k.conj().T@proj)
         lin_plus_add = (0.75*get_lin_matrices(N_z, N_omega, proj)[0] - (3/20)*get_lin_matrices(N_z, N_omega, proj)[1] + (1/60)*get_lin_matrices(N_z, N_omega, proj)[2])
-        lin_minus_add = -(0.75*get_lin_matrices(N_z, N_omega, proj.conj().T)[3] - (3/20)*get_lin_matrices(N_z, N_omega, proj.conj().T)[4] + (1/60)*get_lin_matrices(N_z, N_omega, proj.conj().T)[5])
+        lin_minus_add = -(0.75*get_lin_matrices(N_z, N_omega, proj.conj().T)[N_z - 1] - (3/20)*get_lin_matrices(N_z, N_omega, proj.conj().T)[N_z] + (1/60)*get_lin_matrices(N_z, N_omega, proj.conj().T)[N_z + 1])
         lin_plus_subs = -(0.75*get_lin_matrices(N_z, N_omega, proj.conj().T)[0] - (3/20)*get_lin_matrices(N_z, N_omega, proj.conj().T)[1] + (1/60)*get_lin_matrices(N_z, N_omega, proj.conj().T)[2])
-        lin_minus_subs = (0.75*get_lin_matrices(N_z, N_omega, proj)[3] - (3/20)*get_lin_matrices(N_z, N_omega, proj)[4] + (1/60)*get_lin_matrices(N_z, N_omega, proj)[5])
+        lin_minus_subs = (0.75*get_lin_matrices(N_z, N_omega, proj)[N_z - 1] - (3/20)*get_lin_matrices(N_z, N_omega, proj)[N_z] + (1/60)*get_lin_matrices(N_z, N_omega, proj)[N_z + 1])
         lin_add = (1/delta_z)*(lin_plus_add + lin_minus_add) - beta_weight*lin_pump
         lin_subs = (1/delta_z)*(lin_plus_subs + lin_minus_subs) + beta_weight*lin_pump
         mat_add = sparse.bmat([[quad, 0.5*lin_add],
@@ -183,6 +184,35 @@ def lin_finite_diff_constr(z, N_omega, delta_k, n, beta_weight, project):
                                [0.5*lin_subs.conj().T,  -(cst/N_omega)*sparse.eye(N_omega)]])
         mats += [mat_add, mat_subs]
     return mats
+
+def lin_finite_diff_constr_accurate(z, N_omega, delta_k, n, beta_weight, project):
+    """
+    Gives the matrices to constraint the real and imaginary parts of the dynamics when
+    expressed as central finite difference for adding or substracting the pump of order of
+    accuracy of 4
+    """
+    terms = [1., 1.j]
+    N_z = len(z)
+    delta_z = np.abs(z[1] - z[0])
+    quad = sparse.csc_matrix(((2*N_z - 1)*N_omega,(2*N_z - 1)*N_omega))
+    mats = []
+    for i in range(len(terms)):
+        proj = terms[i]*project.copy()
+        lin_plus_add = (1/delta_z)*(-(1/280)*get_lin_matrices(N_z, N_omega, proj)[3] + (4/105)*get_lin_matrices(N_z, N_omega, proj)[2] - 0.2*get_lin_matrices(N_z, N_omega, proj)[1] + 0.8*get_lin_matrices(N_z, N_omega, proj)[0])
+        lin_plus_subs = (1/delta_z)*((1/280)*get_lin_matrices(N_z, N_omega, proj.conj().T)[N_z + 2] - (4/105)*get_lin_matrices(N_z, N_omega, proj.conj().T)[N_z + 1] + 0.2*get_lin_matrices(N_z, N_omega, proj.conj().T)[N_z] - 0.8*get_lin_matrices(N_z, N_omega, proj.conj().T)[N_z - 1])
+        lin_minus_add = -(1/delta_z)*(-(1/280)*get_lin_matrices(N_z, N_omega, proj.conj().T)[3] + (4/105)*get_lin_matrices(N_z, N_omega, proj.conj().T)[2] - 0.2*get_lin_matrices(N_z, N_omega, proj.conj().T)[1] + 0.8*get_lin_matrices(N_z, N_omega, proj.conj().T)[0])
+        lin_minus_subs = -(1/delta_z)*((1/280)*get_lin_matrices(N_z, N_omega, proj)[N_z + 2] - (4/105)*get_lin_matrices(N_z, N_omega, proj)[N_z + 1] + 0.2*get_lin_matrices(N_z, N_omega, proj)[N_z] - 0.8*get_lin_matrices(N_z, N_omega, proj)[N_z - 1])
+        lin_pump = -beta_weight*(1/np.sqrt(n))*get_lin_matrices(N_z, N_omega, proj.conj().T)[2*N_z - 2]
+        lin_plus = lin_plus_add + lin_plus_subs + lin_pump
+        lin_minus = lin_minus_add + lin_minus_subs - lin_pump
+        cst = -(0.5/np.sqrt(n))*np.trace(proj.conj().T@delta_k - delta_k@proj)
+        mat_plus = sparse.bmat([[sparse.csc_matrix(((2*N_z - 1)*N_omega,(2*N_z - 1)*N_omega)), 0.5*lin_plus],
+                           [0.5*lin_plus.conj().T, (cst/N_omega)*sparse.eye(N_omega)]])
+        mat_minus = sparse.bmat([[sparse.csc_matrix(((2*N_z - 1)*N_omega,(2*N_z - 1)*N_omega)), 0.5*lin_minus],
+                           [0.5*lin_minus.conj().T, (cst/N_omega)*sparse.eye(N_omega)]])
+        mats += [mat_plus, mat_minus]
+    return mats
+
 
 def constr_upper_quadratic_prop_sympl(N_z, N_omega, project):
     """
@@ -283,109 +313,54 @@ def photon_nbr_prev_points(N_omega, N_z):
                                        [sparse.csc_matrix((N_omega, (2*N_z - 1)*N_omega)), sparse.csc_matrix((N_omega, N_omega))]]))
     return constraint
 
-def constr_relate_quad_lin_min(delta_k, N_omega, z, beta_weight, n, project):
+def constr_fin_diff_quad_lin_minus(N_omega, z, beta_weight, n, delta_k, project):
     """
-    Constraint relating the quadratic blocks of minus propagators to the linear blocks of minus propagators
-    and of the block representing multiplication between the pump and the propagators
+    Gives the matrices governing the 3rd order accuracy of backwards finite difference 
+    involving quadratic and linear terms of minus propagators
     """
-    delta_z = np.abs(z[1] - z[0])
-    N_z = len(z)
     terms = [1., 1.j]
     mats = []
-    for i in range(len(terms)):
-        proj = terms[i]*project.copy()
-        lin_term = get_lin_matrices(N_z, N_omega, sparse.csc_matrix((-proj.T@delta_k + (1.5/delta_z)*proj.T).conj().T))[N_z]
-        diff_diag_term = sparse.csc_matrix((-np.sqrt(n)/delta_z)*proj.conj().T)
-        quad_term_pump = sparse.csc_matrix(-0.5*beta_weight*proj.conj().T)
-        quad_term = sparse.csc_matrix((np.sqrt(n)/(4*delta_z))*(proj + proj.conj().T))
-        mat = sparse.bmat([[sparse.csc_matrix((N_omega, N_omega)), diff_diag_term.conj().T],
-                           [diff_diag_term, quad_term]])
-        mat = sparse.bmat([[sparse.csc_matrix(((N_z - 1)*N_omega,(N_z - 1)*N_omega)), sparse.csc_matrix(((N_z - 1)*N_omega, 2*N_omega))],
-                           [sparse.csc_matrix((2*N_omega, (N_z - 1)*N_omega)), mat]])
-        lower_block = sparse.bmat([[sparse.csc_matrix(((N_z - 3)*N_omega, N_z*N_omega)), sparse.csc_matrix(((N_z - 3)*N_omega, N_omega))],
-                                   [sparse.csc_matrix((N_omega, N_z*N_omega)), quad_term_pump.conj().T]])
-        mat = sparse.bmat([[mat, lower_block.conj().T],
-                           [lower_block, sparse.csc_matrix(((N_z - 2)*N_omega, (N_z - 2)*N_omega))]])
-        mat = np.sqrt(n)*sparse.bmat([[mat, 0.5*lin_term],
-                       [0.5*lin_term.conj().T, sparse.csc_matrix((N_omega, N_omega))]])
-        mats.append(mat)
-    return mats
-
-def constr_relate_quad_lin_plus(delta_k, N_omega, z, beta_weight, n, project):
-    """
-    Constraint relating the quadratic blocks of minus propagators to the linear blocks of minus propagators
-    and of the block representing multiplication between the pump and the propagators
-    """
-    delta_z = np.abs(z[1] - z[0])
     N_z = len(z)
-    terms = [1., 1.j]
-    mats = []
-    for i in range(len(terms)):
-        proj = terms[i]*project.copy()
-        lin_term = get_lin_matrices(N_z, N_omega, sparse.csc_matrix((-proj.T@delta_k + (1.5/delta_z)*proj.T).conj().T))[N_z - 2]
-        diff_diag_term = sparse.csc_matrix((-np.sqrt(n)/delta_z)*proj.conj().T)
-        quad_term_pump = sparse.csc_matrix(0.5*beta_weight*proj.conj().T)
-        quad_term = sparse.csc_matrix((np.sqrt(n)/(4*delta_z))*(proj + proj.conj().T))
-        mat = sparse.bmat([[sparse.csc_matrix((N_omega, N_omega)), diff_diag_term.conj().T],
-                           [diff_diag_term, quad_term]])
-        mat = sparse.bmat([[mat, sparse.csc_matrix((2*N_omega, (2*N_z - 4)*N_omega))],
-                           [sparse.csc_matrix(((2*N_z - 4)*N_omega, 2*N_omega)), sparse.csc_matrix(((2*N_z - 4)*N_omega,(2*N_z - 4)*N_omega))]])
-        lower_block = sparse.hstack([sparse.csc_matrix((N_omega, N_omega)), quad_term_pump.conj().T, sparse.csc_matrix((N_omega, (2*N_z - 4)*N_omega))])
-        mat = sparse.bmat([[mat, lower_block.conj().T],
-                           [lower_block, sparse.csc_matrix((N_omega, N_omega))]])
-        mat = np.sqrt(n)*sparse.bmat([[mat, 0.5*lin_term],
-                           [0.5*lin_term.conj().T, sparse.csc_matrix((N_omega, N_omega))]])
-        mats.append(mat)
-    return mats
-
-def constr_lin_quad_pump_minus(N_omega, z, beta_weight, n, delta_k, project):
-    """
-    Gives the matrices to fix the linear terms of minus propagators with the
-    block representing multiplication between the pump and U_minus(2)
-    """
     delta_z = np.abs(z[1] - z[0])
-    N_z = len(z)
-    terms = [1., 1.j]
-    mats = []
     for i in range(len(terms)):
         proj = terms[i]*project.copy()
-        quad = sparse.hstack([sparse.csc_matrix((N_omega,(2*N_z - 3)*N_omega)), beta_weight*proj])
-        quad = sparse.bmat([[sparse.csc_matrix(((2*N_z - 2)*N_omega,(2*N_z - 2)*N_omega)),  sparse.csc_matrix(((2*N_z - 2)*N_omega, N_omega))],
-                            [quad, sparse.csc_matrix((N_omega, N_omega))]])
-        quad = 0.5*(quad + quad.conj().T)
-        lin_second = get_lin_matrices(N_z, N_omega, (1.5/delta_z)*proj.conj().T + proj.conj().T@delta_k)[2*N_z - 3]
-        lin_first = get_lin_matrices(N_z, N_omega, -(2/delta_z)*proj.conj().T)[2*N_z - 4]
-        lin = lin_second + lin_first
-        cst = np.real((0.5/(delta_z*np.sqrt(n)))*(proj.conj().T).trace())
-        mat = sparse.bmat([[quad, 0.5*lin],
-                           [0.5*lin.conj().T, (cst/N_omega)*sparse.eye(N_omega)]])
-        mats.append(mat)
+        for j in range(3):
+            pos = N_z - 1 + j
+            quad_first = (-3/delta_z)*quad_proj(N_omega, N_z, N_z - 1, pos, proj)
+            quad_second = (1.5/delta_z)*quad_proj(N_omega, N_z, N_z, pos, proj)
+            quad_third = -(1/(3*delta_z))*quad_proj(N_omega, N_z, N_z + 1, pos, proj)
+            quad_fourth = -(1/np.sqrt(n))*beta_weight*quad_proj(N_omega, N_z, (2*N_z - 2), pos, proj)
+            quad = quad_first + quad_second + quad_third + quad_fourth
+            quad = 0.5*(quad + quad.conj().T)
+            lin = (11/(6*np.sqrt(n)*delta_z))*get_lin_matrices(N_z, N_omega, proj.conj().T)[pos] + (1/np.sqrt(n))*get_lin_matrices(N_z, N_omega, proj.conj().T@delta_k)[pos]
+            mat = 0.1*sparse.bmat([[quad, 0.5*lin],
+                           [0.5*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]])
+            mats.append(mat)
     return mats
 
-def constr_lin_quad_pump_plus(N_omega, z, beta_weight, n, delta_k, project):
+def constr_fin_diff_quad_lin_plus(N_omega, z, beta_weight, n, delta_k, project):
     """
-    Gives the matrices to fix the linear terms of plus propagators with the
-    block representing multiplication between the pump and U_pluus(2)
+    Gives the matrices governing the 3rd order accuracy of backwards finite difference 
+    involving quadratic and linear terms of plus propagators
     """
+    mats = []
+    terms = [1., 1.j]
+    N_z = len(z)
     delta_z = np.abs(z[1] - z[0])
-    N_z = len(z)
-    terms = [1., 1.j]
-    mats = []
     for i in range(len(terms)):
         proj = terms[i]*project.copy()
-        quad = sparse.hstack([sparse.csc_matrix((N_omega,N_omega)), -beta_weight*proj, sparse.csc_matrix((N_omega, (2*N_z - 4)*N_omega))])
-        quad = sparse.bmat([[sparse.csc_matrix(((2*N_z - 2)*N_omega,(2*N_z - 2)*N_omega)),  sparse.csc_matrix(((2*N_z - 2)*N_omega, N_omega))],
-                            [quad, sparse.csc_matrix((N_omega, N_omega))]])
-        quad = 0.5*(quad + quad.conj().T)
-        lin_second = get_lin_matrices(N_z, N_omega, ((1.5/delta_z)*proj.conj().T + proj.conj().T@delta_k))[1]
-        lin_first = get_lin_matrices(N_z, N_omega, (-(2/delta_z)*proj.conj().T))[0]
-        lin = lin_second + lin_first
-        cst = np.real((0.5/(delta_z*np.sqrt(n)))*(proj.conj().T).trace())
-        mat = sparse.bmat([[quad, 0.5*lin],
-                            [0.5*lin.conj().T, (cst/N_omega)*sparse.eye(N_omega)]])
-        mats.append(mat)
+        for j in range(3):
+            quad_first = -(3/delta_z)*quad_proj(N_omega, N_z, 0, j, proj)
+            quad_second = (1.5/delta_z)*quad_proj(N_omega, N_z, 1, j, proj)
+            quad_third = -(1/(3*delta_z))*quad_proj(N_omega, N_z, 2, j, proj)
+            quad_fourth = beta_weight*(1/np.sqrt(n))*quad_proj(N_omega, N_z, (2*N_z - 2), j, proj)
+            quad = quad_first + quad_second + quad_third + quad_fourth
+            quad = 0.5*(quad + quad.conj().T)
+            lin = (11/(6*np.sqrt(n)*delta_z))*get_lin_matrices(N_z, N_omega, proj.conj().T)[j] + (1/np.sqrt(n))*get_lin_matrices(N_z, N_omega, proj.conj().T@delta_k)[j]
+            mat = 0.01*sparse.bmat([[quad, 0.5*lin],
+                               [0.5*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]])
+            mats.append(mat)
     return mats
-
 
 def constr_relate_quad_mid_lin_finite_diff(N_omega, N_z, beta_weight, n, delta_z, delta_k, proj):
     """
