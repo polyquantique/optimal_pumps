@@ -315,7 +315,7 @@ def photon_nbr_prev_points(N_omega, N_z):
 
 def constr_fin_diff_quad_lin_minus(N_omega, z, beta_weight, n, delta_k, project):
     """
-    Gives the matrices governing the 3rd order accuracy of backwards finite difference 
+    Gives the matrices governing the 4th order accuracy of backwards finite difference 
     involving quadratic and linear terms of minus propagators
     """
     terms = [1., 1.j]
@@ -324,23 +324,25 @@ def constr_fin_diff_quad_lin_minus(N_omega, z, beta_weight, n, delta_k, project)
     delta_z = np.abs(z[1] - z[0])
     for i in range(len(terms)):
         proj = terms[i]*project.copy()
-        for j in range(3):
+        for j in range(4):
             pos = N_z - 1 + j
-            quad_first = (-3/delta_z)*quad_proj(N_omega, N_z, N_z - 1, pos, proj)
-            quad_second = (1.5/delta_z)*quad_proj(N_omega, N_z, N_z, pos, proj)
-            quad_third = -(1/(3*delta_z))*quad_proj(N_omega, N_z, N_z + 1, pos, proj)
-            quad_fourth = -(1/np.sqrt(n))*beta_weight*quad_proj(N_omega, N_z, (2*N_z - 2), pos, proj)
-            quad = quad_first + quad_second + quad_third + quad_fourth
+            quad_first = -(4/delta_z)*quad_proj(N_omega, N_z, N_z - 1, pos, proj)
+            quad_second = (3/delta_z)*quad_proj(N_omega, N_z, N_z, pos, proj)
+            quad_third = -(4/(3*delta_z))*quad_proj(N_omega, N_z, N_z + 1, pos, proj)
+            quad_fourth = (0.25/delta_z)*quad_proj(N_omega, N_z, N_z + 2, pos, proj)
+            quad_fifth = -(beta_weight/np.sqrt(n))*quad_proj(N_omega, N_z, 2*N_z - 2, pos, proj)
+            quad = quad_first + quad_second + quad_third + quad_fourth + quad_fifth
             quad = 0.5*(quad + quad.conj().T)
-            lin = (11/(6*np.sqrt(n)*delta_z))*get_lin_matrices(N_z, N_omega, proj.conj().T)[pos] + (1/np.sqrt(n))*get_lin_matrices(N_z, N_omega, proj.conj().T@delta_k)[pos]
+            lin = (25/(12*np.sqrt(n)*delta_z))*get_lin_matrices(N_z, N_omega, proj.conj().T)[pos] + (1/np.sqrt(n))*get_lin_matrices(N_z, N_omega, proj.conj().T@delta_k)[pos]
             mat = 0.1*sparse.bmat([[quad, 0.5*lin],
-                           [0.5*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]])
+                                [0.5*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]])
+
             mats.append(mat)
     return mats
 
 def constr_fin_diff_quad_lin_plus(N_omega, z, beta_weight, n, delta_k, project):
     """
-    Gives the matrices governing the 3rd order accuracy of backwards finite difference 
+    Gives the matrices governing the 4th order accuracy of backwards finite difference 
     involving quadratic and linear terms of plus propagators
     """
     mats = []
@@ -349,16 +351,17 @@ def constr_fin_diff_quad_lin_plus(N_omega, z, beta_weight, n, delta_k, project):
     delta_z = np.abs(z[1] - z[0])
     for i in range(len(terms)):
         proj = terms[i]*project.copy()
-        for j in range(3):
-            quad_first = -(3/delta_z)*quad_proj(N_omega, N_z, 0, j, proj)
-            quad_second = (1.5/delta_z)*quad_proj(N_omega, N_z, 1, j, proj)
-            quad_third = -(1/(3*delta_z))*quad_proj(N_omega, N_z, 2, j, proj)
-            quad_fourth = beta_weight*(1/np.sqrt(n))*quad_proj(N_omega, N_z, (2*N_z - 2), j, proj)
-            quad = quad_first + quad_second + quad_third + quad_fourth
+        for j in range(4):
+            quad_first = -(4/delta_z)*quad_proj(N_omega, N_z, 0, j, proj)
+            quad_second = (3/delta_z)*quad_proj(N_omega, N_z, 1, j, proj)
+            quad_third = -(4/(3*delta_z))*quad_proj(N_omega, N_z, 2, j, proj)
+            quad_fourth = (0.25/delta_z)*quad_proj(N_omega, N_z, 3, j, proj)
+            quad_fifth = (beta_weight/np.sqrt(n))*quad_proj(N_omega, N_z, 2*N_z - 2, j, proj)
+            quad = quad_first + quad_second + quad_third + quad_fourth + quad_fifth
             quad = 0.5*(quad + quad.conj().T)
-            lin = (11/(6*np.sqrt(n)*delta_z))*get_lin_matrices(N_z, N_omega, proj.conj().T)[j] + (1/np.sqrt(n))*get_lin_matrices(N_z, N_omega, proj.conj().T@delta_k)[j]
-            mat = 0.01*sparse.bmat([[quad, 0.5*lin],
-                               [0.5*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]])
+            lin = (25/(12*np.sqrt(n)*delta_z))*get_lin_matrices(N_z, N_omega, proj.conj().T)[j] + (1/np.sqrt(n))*get_lin_matrices(N_z, N_omega, proj.conj().T@delta_k)[j]
+            mat = 0.1*sparse.bmat([[quad, 0.5*lin],
+                                [0.5*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]])
             mats.append(mat)
     return mats
 
