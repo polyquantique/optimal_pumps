@@ -1,0 +1,15 @@
+# Chapter using N_omega = 15, omega ranging from -2 to 2, N_z = 5, z ranging from 0 to 2*10**-3
+Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 100, 0.9<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.1, bound: infeas
+Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 110, 0.9<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.1, bound: infeas
+Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 120, 0.9<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.1, bound: 0.704 with feasibility of 0.988
+Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 130, 0.9<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.1, bound: 0.307
+Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 140, 0.9<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.1, bound: 0.26086
+Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 150, 0.9<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.1, bound: 0.2280
+Hermite cutoff order: 5, Hermite width: 0.1, n = 0.5, beta_weight : 120, 0.9<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.1, bound: infeas (4. something)
+Hermite cutoff order: 5, Hermite width: 0.1, n = 0.5, beta_weight : 130, 0.9<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.1, bound: 0.3148 with feasibility of 0.781
+Hermite cutoff order: 5, Hermite width: 0.1, n = 0.5, beta_weight : 140, 0.9<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.1, bound: 0.3148 with feasibility of 0.2688
+
+
+
+
+
