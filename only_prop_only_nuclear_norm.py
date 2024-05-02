@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.sparse as sparse
 import scipy
+import math
 
 np.random.seed(0)
 
@@ -543,6 +544,30 @@ def pump_exp_decay_constr(N_omega, N_z, left_decay_sign, right_decay_sign, posit
         mat_right.append(sparse.bmat([[sparse.csc_matrix(((2*N_z - 1)*N_omega,(2*N_z - 1)*N_omega)), 0.5*lin_right],
                                     [0.5*lin_right.conj().T, -(right[position - i - 1]/N_omega)*sparse.eye(N_omega)]]))
     return mat_left, mat_right
+
+def isolate_vect_pump(N_omega, N_z):
+    """
+    Gives the matrices to isolate the entire first row of the pump and the last row of pump except the first element
+    """
+    left_first_half = np.eye((2*N_z*N_omega))[(2*N_z - 2)*N_omega]
+    right_first_half = get_lin_matrices(N_z, N_omega, sparse.eye(N_omega))[-1]
+    right_first_half = sparse.vstack([sparse.csc_matrix((N_omega, N_omega)), right_first_half])
+    left_second_half = np.eye((2*N_z*N_omega))[(2*N_z - 1)*N_omega - 1]
+    right_second_half = get_lin_matrices(N_z, N_omega, sparse.eye(N_omega))[-1][:, 1:]
+    right_second_half = sparse.vstack([sparse.csc_matrix((N_omega, N_omega - 1)), right_second_half])
+    return left_first_half, left_second_half, right_first_half, right_second_half
+
+def get_hermite_polynom_mat(omega, max_order, width):
+    """
+    Gives the matrix with Hermite basis element on every row. Width is the width of the Gaussian in the basis.
+    """
+    N_omega = len(omega)
+    increase_omega = np.linspace(omega[0], omega[-1], 2*N_omega - 1)
+    gauss_modes_mat = (1/np.sqrt(np.sqrt(np.pi)))*np.exp(-increase_omega**2/0.5)
+    for i in range(1, max_order):
+        norm_cst = (1/np.sqrt((2**i)*math.factorial(i)*np.sqrt(np.pi)))
+        gauss_modes_mat = np.vstack([gauss_modes_mat, norm_cst*scipy.special.hermite(i)(increase_omega)*np.exp(-increase_omega**2/width)])
+    return gauss_modes_mat
 
 def obj_f_mat(N_omega, N_z):
     """
