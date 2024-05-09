@@ -8,24 +8,13 @@ Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 150, 0.9<=d
 Hermite cutoff order: 5, Hermite width: 0.1, n = 0.5, beta_weight : 120, 0.9<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.05, bound: infeas (4. something)
 Hermite cutoff order: 5, Hermite width: 0.1, n = 0.5, beta_weight : 130, 0.9<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.05, bound: 0.3148 with feasibility of 0.781
 Hermite cutoff order: 5, Hermite width: 0.1, n = 0.5, beta_weight : 140, 0.9<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.05, bound: 0.2345
+Hermite no cutoff, n = 0.5, beta_weight = 130, d_+1 - d_-1 = 1, bound: 0.365
+Hermite no cutoff, n = 0.5, beta_weight = 130, 0.95<=d_+1 - d_-1 <= 1, |d_+2 - d_-2|<=0.025, bound: 0.291
+Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight = 130, d_+1 - d_-1 = 1, bound: infeas
+Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight = 140, d_+1 - d_-1 = 1, bound: 1.15 (PRSTATUS of -0.667)
+Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight = 150, d_+1 - d_-1 = 1, bound: 0.483
+Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight = 140, 0.95<=d_+1 - d_-1 <= 1, |d_+2 - d_-2|<=0.025, bound: 0.355
 
-## Tighter choking on the nuclear norms
-Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 130, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.025, bound: inf
-Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 132, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.025, bound: inf
-Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 134, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.025, bound: inf
-Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 136, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.025, bound: inf
-Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 138, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.025, bound: inf
-Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 140, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.025, bound: inf
-Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 142, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.025, bound: inf
-Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 144, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.025, bound: inf
-Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 146, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.025, bound: inf
-Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 148, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.025, bound: inf
-Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 150, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.025, bound: inf
-Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 152, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.025, bound: inf
-Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 154, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.025, bound: inf
-Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 156, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.025, bound: inf
-Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 158, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.025, bound: inf
-Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 160, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.025, bound: inf
 
 
 ## No constraints on linear parts of finite difference
@@ -36,8 +25,21 @@ Hermite cutoff order: 10, Hermite width: 0.4, n = 0.5, beta_weight : 140, 0.9<=d
 
 
 
+# Performance of the MOSEK program
+2 threads: 7 G RAM usage, 25 iterations, 702 seconds, 28.08 sec/iter
+4 threads: 13 G RAM usage, 29 iterations, 477 seconds, 16.45 sec/iter
+8 threads: 19 G RAM usage, 20 iterations, 213 seconds, 10.65 sec/iter
+16 threads: 28 G RAM usage, 23 iterations, 214 seconds, 9.30 sec/iter
+
+# Chapter using N_omega = 15, omega ranging from -2 to 2, N_z = 6, z ranging from 0 to 5*10**-3
+No Hermite cutoff, Hermite width: 0.1, n = 0.5, beta_weight : 60, 0.995<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.005, bound: 0.5524254570488673
+Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 60, 0.995<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.005, bound: inf
+
+
+
 
 
 
 # General observation
 - Adding constraints revolving more symplectic relations seem to make the bound better. Ex.: N_omega = 15, N_z = 5, z_end = 0.005, n = 0.5, beta_weight = 140, with symplectic: 0.26, without symplectix: 0.135
+- When N_omega = 15, N_z = 5, z_end = 0.005, n = 0.5, beta_weight = 140, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.05, if no hermite basis, bound of 0.257, if hermite basis cut of 5, bound of
