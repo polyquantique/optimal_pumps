@@ -2,16 +2,18 @@ import numpy as np
 import scipy
 import scipy.sparse as sparse
 import cvxpy as cp
+import matplotlib.pyplot as plt
 import only_prop_only_nuclear_norm as api
+import time
+import math
 
 np.random.seed(0)
 
-
-N_omega = 31
-free_indices = 57
+N_omega = 21
+free_indices = 2*N_omega - 1 - 12
 omega = np.linspace(-2, 2, N_omega)
-N_z = 3
-z = np.linspace(0, 4*10**-3, N_z)
+N_z = 6
+z = np.linspace(0, 5*10**-3, N_z)
 delta_z = np.abs(z[1] - z[0])
 green_fs = api.get_green_f(omega,z)
 projection = np.zeros((N_omega, N_omega))
@@ -32,34 +34,25 @@ for i in range(N_omega):
             sdr_cst.append(2.)
         else:
             sdr_cst.append(0.)
-position = 5
-decay_curve = 5
-delta_omega = np.log(decay_curve)/position
-beta_vec = np.array(list(np.zeros(10)) + list(np.random.random(2*N_omega - 21)) + list(np.zeros(10)))
-#1.916*np.exp(-np.linspace(omega[0], omega[-1], 2*N_omega - 1)**2/1.995)#np.array([0., 0., 0.] + list(np.random.random(2*N_omega - 7)) + [0., 0., 0.])
-#np.array([2.10900246, 2.10794203, 2.10786931, 2.10829837, 2.10790335,
-       #2.1076864 , 2.10778626, 2.1078306 , 2.10778798, 2.10783712,
-       #2.10781799, 2.1078467 , 2.10784045, 2.10769124, 2.10781962,
-       #2.10769124, 2.10784045, 2.1078467 , 2.10781799, 2.10783712,
-       #2.10778798, 2.1078306 , 2.10778626, 2.1076864 , 2.10790335,
-       #2.10829837, 2.10786931, 2.10794203, 2.10900246])
-#np.array(list((0.1/decay_curve)*np.exp(np.linspace(0, position*delta_omega, position))) + list(0.1 + np.exp(-np.linspace(omega[position], omega[len(omega) - 1 - position], 2*N_omega - 1 - 2*position)**2)) + list((0.1/decay_curve)*np.exp(np.linspace(position*delta_omega, 0, position))))
+
+beta_vec = np.exp(-np.linspace(omega[0], omega[-1], 2*N_omega - 1)**2/2.1)
 beta = scipy.linalg.hankel(beta_vec[:N_omega], beta_vec[N_omega - 1:])
 new_beta = beta/np.sqrt(np.trace(beta@beta))
-beta_weight = np.sqrt(np.trace(beta@beta))
+beta_weight = 132.
 delta_k = 1.j*np.diag(omega)
 Q_plus = delta_k + beta_weight*new_beta
 Q_minus = delta_k - beta_weight*new_beta
 n = 0.25*np.trace((scipy.linalg.expm(Q_plus*z[-1]) - scipy.linalg.expm(Q_minus*z[-1])).conj().T@(scipy.linalg.expm(Q_plus*z[-1]) - scipy.linalg.expm(Q_minus*z[-1])))
-W_plus = [(1/np.sqrt(n))*scipy.linalg.expm(Q_plus*z[i]) for i in range(1, N_z)]
-W_minus = [(1/np.sqrt(n))*scipy.linalg.expm(Q_minus*z[i]) for i in range(1, N_z)]
-X = np.vstack(W_plus + W_minus + [new_beta])
-Y = np.vstack(W_plus + W_minus + [new_beta, np.eye(N_omega)])
-full_rank = Y@Y.conj().T
-# Generate constraints
 dynamics_constr = []
 sympl_constr = []
 pump_fix_constr = []
+lin_dynamics = []
+lin_dynamics_accurate = []
+quad_symplect = []
+gen_symplect = []
+fin_diff_quad_lin_plus = []
+fin_diff_quad_lin_minus = []
+lin_dynamics_more_accurate = []
 pump_power_constr = api.limit_pump_power(N_omega, N_z)
 photon_end_nbr_constr = api.photon_nbr_constr(N_omega, N_z, n)
 photon_prev_ineq_constr = api.photon_nbr_prev_points(N_omega, N_z)
@@ -73,8 +66,15 @@ for i in range(len(projections)):
     real_fixed_pump, imag_fixed_pump = api.sdr_fixed_pump(N_omega, N_z, new_beta, projections[i])
     dynamics_constr += real_plus_dyn + imag_plus_dyn + real_minus_dyn + imag_minus_dyn
     sympl_constr += real_sympl + imag_sympl
-    pump_fix_constr += [imag_fixed_pump]#, real_fixed_pump]
-constraints_list = dynamics_constr + sympl_constr + pump_hankel_constr + [photon_end_nbr_constr, pump_power_constr] + pump_fix_constr + fixed_first_last_row
+    lin_dynamics += api.lin_finite_diff_constr(z, N_omega, delta_k, n, beta_weight, projections[i])
+    lin_dynamics_accurate += api.lin_finite_diff_constr_accurate(z, N_omega, delta_k, n, beta_weight, projections[i])
+    lin_dynamics_more_accurate += api.lin_finite_diff_constr_more_accurate(z, N_omega, delta_k, n, beta_weight, projections[i])
+    quad_symplect += api.constr_lower_quadratic_prop_sympl(N_omega, N_z, projections[i]) + api.constr_upper_quadratic_prop_sympl(N_z, N_omega, projections[i])
+    gen_symplect += api.constr_sympl_plus(N_z, N_omega, n, projections[i]) + api.constr_sympl_minus(N_z, N_omega, n, projections[i])
+    fin_diff_quad_lin_plus += api.constr_fin_diff_quad_lin_plus(N_omega, z, beta_weight, n, delta_k, projections[i])
+    fin_diff_quad_lin_minus += api.constr_fin_diff_quad_lin_minus(N_omega, z, beta_weight, n, delta_k, projections[i])
+    pump_fix_constr += [imag_fixed_pump]
+constraints_list = dynamics_constr + sympl_constr + pump_hankel_constr + [photon_end_nbr_constr, pump_power_constr] + pump_fix_constr  + fin_diff_quad_lin_plus + fin_diff_quad_lin_minus + quad_symplect + gen_symplect + lin_dynamics + lin_dynamics_accurate + lin_dynamics_more_accurate
 left, right = api.obj_f_mat(N_omega, N_z)
 left_both = api.get_lin_matrices(N_z, N_omega, sparse.eye(N_omega))[2*N_z - 2]
 left_both = sparse.vstack([sparse.csc_matrix((N_omega, N_omega)), left_both])
@@ -82,21 +82,28 @@ right_plus = api.get_lin_matrices(N_z, N_omega, sparse.eye(N_omega))[N_z - 2]
 right_plus.resize((2*N_z*N_omega, N_omega))
 right_minus =  api.get_lin_matrices(N_z, N_omega, sparse.eye(N_omega))[2*N_z - 3]
 right_minus.resize((2*N_z*N_omega, N_omega))
-epsilon = .6
-cst_plus = (N_omega - 2)/np.sqrt(n) + 1 + np.sqrt(1 + 1/n) + epsilon/2 + np.sqrt((epsilon**2)/4 + 1/n)
-cst_minus = (N_omega - 2)/np.sqrt(n) -0.9 + np.sqrt((0.9)**2 + 1/n) + epsilon/2 + np.sqrt((epsilon**2)/4 + 1/n)
-bounds = []
-for i in range(5):
-    fixed_first_last_row = api.constr_first_last_row_pump(N_omega, N_z, new_beta, free_indices - i)
-    constraints_list = dynamics_constr + sympl_constr + pump_hankel_constr + [photon_end_nbr_constr, pump_power_constr] + pump_fix_constr + fixed_first_last_row
-    variable = cp.Variable(shape = (2*N_z*N_omega, 2*N_z*N_omega), hermitian = True)
-    constraints = [variable >> 0]
-    constraints += [cp.real(cp.trace(sdr_def_constr[i]@variable)) == sdr_cst[i] for i in range(len(sdr_def_constr))]
-    constraints += [cp.real(cp.trace(constraints_list[i]@variable)) == 0 for i in range(len(constraints_list))]
-    constraints += [cp.real(cp.trace(photon_prev_ineq_constr[i]@variable)) >= 0 for i in range(len(photon_prev_ineq_constr))]
-    # Constraints on nuclear norm of U_+ and U_-
-    constraints.append((cp.real(cp.atoms.norm(left_both.conj().T@variable@right_plus, "nuc")) - cp.real(cst_plus)) <= 0)
-    constraints.append((cp.real(cp.atoms.norm(left_both.conj().T@variable@right_minus, "nuc")) - cp.real(cst_minus)) <= 0)
-    problem = cp.Problem(cp.Minimize(cp.atoms.norm(left.conj().T@variable@right, "nuc")), constraints)
-    bounds.append(problem.solve(solver = cp.MOSEK, mosek_params = {"MSK_IPAR_INTPNT_MAX_ITERATIONS":10**5}))
-np.save("bounds_diff_cst.npy", np.array(bounds))
+epsilon = .01
+cst_plus = (N_omega - 2)/np.sqrt(n) + 1 + np.sqrt(1 + 1/n) +  epsilon/2 + np.sqrt((epsilon**2)/4 + 1/n)
+cst_minus = (N_omega - 2)/np.sqrt(n) - .995 + np.sqrt((.995)**2 + 1/n) + epsilon/2 + np.sqrt((epsilon**2)/4 + 1/n)
+variable = cp.Variable(shape = (2*N_z*N_omega, 2*N_z*N_omega), hermitian = True)
+constraints = [variable >> 0]
+constraints += [cp.real(cp.trace(sdr_def_constr[i]@variable)) == sdr_cst[i] for i in range(len(sdr_def_constr))]
+constraints += [cp.real(cp.trace(constraints_list[i]@variable)) == 0 for i in range(len(constraints_list))]
+constraints += [cp.real(cp.trace(photon_prev_ineq_constr[i]@variable)) >= 0 for i in range(len(photon_prev_ineq_constr))]
+# Nuclear norm into SDP
+V_plus = cp.Variable(shape = (N_omega, N_omega), hermitian = True)
+X_plus = cp.Variable(shape = (N_omega, N_omega), hermitian = True)
+V_minus = cp.Variable(shape = (N_omega, N_omega), hermitian = True)
+X_minus = cp.Variable(shape = (N_omega, N_omega), hermitian = True)
+var_U_plus_dagger = left_both.conj().T@variable@right_plus
+var_U_minus_dagger = left_both.conj().T@variable@right_minus
+Q_plus = cp.vstack([cp.hstack([V_plus, var_U_plus_dagger]), cp.hstack([var_U_plus_dagger.conj().T, X_plus])])
+Q_minus = cp.vstack([cp.hstack([V_minus, var_U_minus_dagger]), cp.hstack([var_U_minus_dagger.conj().T, X_minus])])
+constraints.append(Q_plus >> 0)
+constraints.append(Q_minus >> 0)
+constraints.append(cp.real(cp.trace(V_plus + X_plus)) - 2*cst_plus == 0)
+constraints.append(cp.real(cp.trace(V_minus + X_minus)) - 2*cst_minus == 0)
+problem = cp.Problem(cp.Minimize(cp.atoms.norm(left.conj().T@variable@right, "nuc")), constraints)
+problem.solve(solver = cp.MOSEK, mosek_params = {"MSK_IPAR_INTPNT_MAX_ITERATIONS":10**9, "MSK_DPAR_INTPNT_CO_TOL_INFEAS":10**-8, "MSK_IPAR_NUM_THREADS":8, "MSK_DPAR_INTPNT_CO_TOL_DFEAS":10**-4, "MSK_DPAR_INTPNT_CO_TOL_PFEAS":10**-4, "MSK_DPAR_INTPNT_TOL_DFEAS":10**-4}, verbose = True)
+end_product = variable.value
+np.save("may_10th_no_herm_basis.npy", end_product)

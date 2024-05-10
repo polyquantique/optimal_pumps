@@ -321,15 +321,17 @@ def constr_sympl_plus(N_z, N_omega, n, project):
             mats.append(mat)
     return mats
 
-def limit_pump_power(N_omega, N_z):
+def limit_pump_power(omega, N_z):
     """
     Constraint limiting the trace of beta dagger beta to be 1
     """
+    N_omega = len(omega)
+    delta_omega = np.abs(omega[1] - omega[0])
     quad = sparse.eye(N_omega)
     quad = sparse.bmat([[sparse.csc_matrix(((2*N_z - 2)*N_omega,(2*N_z - 2)*N_omega)), sparse.csc_matrix(((2*N_z - 2)*N_omega, N_omega))],
                         [sparse.csc_matrix((N_omega, (2*N_z - 2)*N_omega)), quad]])
     mat = sparse.bmat([[quad, sparse.csc_matrix(((2*N_z - 1)*N_omega, N_omega))],
-                       [sparse.csc_matrix((N_omega, (2*N_z - 1)*N_omega)), -(1/N_omega)*sparse.eye(N_omega)]])
+                       [sparse.csc_matrix((N_omega, (2*N_z - 1)*N_omega)), -((delta_omega**2)/N_omega)*sparse.eye(N_omega)]])
     return mat
 
 def photon_nbr_prev_points(N_omega, N_z):

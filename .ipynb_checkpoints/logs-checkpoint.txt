@@ -35,6 +35,9 @@ Hermite cutoff order: 10, Hermite width: 0.4, n = 0.5, beta_weight : 140, 0.9<=d
 No Hermite cutoff, Hermite width: 0.1, n = 0.5, beta_weight : 60, 0.995<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.005, bound: 0.5524254570488673
 Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 60, 0.995<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.005, bound: inf
 
+# Chapter using N_omega = 15, omega ranging from -2 to 2, N_z = 6, z ranging from 0 to 5*10**-3
+## Performance of MOSEK
+- 8 threads: 50 G RAM usage, 12 iterations, 170 sec/iter
 
 
 
@@ -43,3 +46,12 @@ Hermite cutoff order: 10, Hermite width: 0.1, n = 0.5, beta_weight : 60, 0.995<=
 # General observation
 - Adding constraints revolving more symplectic relations seem to make the bound better. Ex.: N_omega = 15, N_z = 5, z_end = 0.005, n = 0.5, beta_weight = 140, with symplectic: 0.26, without symplectix: 0.135
 - When N_omega = 15, N_z = 5, z_end = 0.005, n = 0.5, beta_weight = 140, 0.95<=d_+1 - d_-1<=1, |d_+2 - d_-2|<=0.05, if no hermite basis, bound of 0.257, if hermite basis cut of 5, bound of
+- The solution is almost the outer product of 2 vector matrices. The only difference is on the diagonal when multiplying the block U_+ and U_+ dagger compared to the diagonal of the block U_+ U_+ dagger. The latter is greater than the former, making the value of trace of (U_+ - U_-)(U_+ - U_-)dagger much different from 4.
+- Finite difference schemes on only the diagonal may solve this issue... Get some kind of connection between diagonals of U_+ U_+ dagger and diagonal of U_+ and/or of other blocks.
+
+# TODO
+- Check out how diagonals of U_+U_+ and VU_+ connected
+
+
+
+
