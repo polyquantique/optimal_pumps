@@ -158,6 +158,31 @@ def photon_nbr_constr(N_omega, N_z, n):
                          [sparse.csc_matrix((N_omega, (2*N_z - 1)*N_omega)), -((N_omega/(2*n) + 1)/N_omega)*sparse.eye(N_omega)]])
     return diags
 
+def finite_diff_constr_V(z, N_omega, delta_k, n, beta_weight, project):
+    """
+    Gives the matrices to constraint the real and imaginary parts of the dynamics
+    when expressed as backwards finite difference using the propagator with only the pump,
+    not pump multiplied by any propagator. The backwards finite difference uses 5th order accuracy
+    """
+    terms = [1., 1.j]
+    N_z = len(z)
+    delta_z = np.abs(z[1] - z[0])
+    mats = []
+    for i in range(len(terms)):
+        proj = terms[i]*project.copy()
+        lin_plus_prop = (1/delta_z)*(0.2*get_lin_matrices(N_z, N_omega, proj)[4] - (5/4)*get_lin_matrices(N_z, N_omega, proj)[3] + (10/3)*get_lin_matrices(N_z, N_omega, proj)[2] - 5*get_lin_matrices(N_z, N_omega, proj)[1] + 5*get_lin_matrices(N_z, N_omega, proj)[0])
+        lin_minus_prop = (1/delta_z)*(0.2*get_lin_matrices(N_z, N_omega, proj)[N_z + 3] - (5/4)*get_lin_matrices(N_z, N_omega, proj)[N_z + 2] + (10/3)*get_lin_matrices(N_z, N_omega, proj)[N_z + 1] - 5*get_lin_matrices(N_z, N_omega, proj)[N_z] + 5*get_lin_matrices(N_z, N_omega, proj)[N_z - 1])
+        lin_pump = - (beta_weight/np.sqrt(n))*get_lin_matrices(N_z, N_omega, proj)[2*N_z - 2]
+        cst = 0.5*np.trace((1/np.sqrt(n))*(proj.conj().T@delta_k + delta_k.conj().T@proj) + (137/(60*delta_z*np.sqrt(n)))*(proj.conj().T + proj))
+        lin_plus = lin_plus_prop + lin_pump
+        lin_minus = lin_minus_prop - lin_pump
+        mat_plus = sparse.bmat([[sparse.csc_matrix(((2*N_z - 1)*N_omega,(2*N_z - 1)*N_omega)), 0.5*lin_plus],
+                                [0.5*lin_plus.conj().T, -(cst/N_omega)*sparse.eye(N_omega)]])
+        mat_minus = sparse.bmat([[sparse.csc_matrix(((2*N_z - 1)*N_omega,(2*N_z - 1)*N_omega)), 0.5*lin_minus],
+                                [0.5*lin_minus.conj().T, -(cst/N_omega)*sparse.eye(N_omega)]])
+        mats += [mat_plus, mat_minus]
+    return mats
+
 def lin_finite_diff_constr(z, N_omega, delta_k, n, beta_weight, project):
     """
     Gives the matrices to constraint the real and imaginary parts of the dynamics when
@@ -243,7 +268,6 @@ def lin_finite_diff_constr_more_accurate(z, N_omega, delta_k, n, beta_weight, pr
                            [0.5*lin_subs.conj().T, (cst/N_omega)*sparse.eye(N_omega)]])
         mats += [mat_plus, mat_minus]
     return mats
-
 
 def constr_upper_quadratic_prop_sympl(N_z, N_omega, project):
     """
@@ -345,6 +369,55 @@ def photon_nbr_prev_points(N_omega, N_z):
         constraint.append(sparse.bmat([[quad, sparse.csc_matrix(((2*N_z - 1)*N_omega, N_omega))],
                                        [sparse.csc_matrix((N_omega, (2*N_z - 1)*N_omega)), sparse.csc_matrix((N_omega, N_omega))]]))
     return constraint
+
+def constr_fin_diff_quad_lin_minus_N_z_4(N_omega, z, beta_weight, n, delta_k, project):
+    """
+    Gives the matrices governing the 3rd order accuracy of backwards finite difference 
+    involving quadratic and linear terms of minus propagators
+    """
+    terms = [1., 1.j]
+    mats = []
+    N_z = len(z)
+    delta_z = np.abs(z[1] - z[0])
+    for i in range(len(terms)):
+        proj = terms[i]*project
+        for j in range(3):
+            pos = N_z - 1 + j
+            quad_one = (1/3)*quad_proj(N_omega, N_z,x_index=N_z + 1,y_index=pos,proj=proj)
+            quad_two = -1.5*quad_proj(N_omega, N_z,x_index=N_z,y_index=pos,proj=proj)
+            quad_three = 3*quad_proj(N_omega, N_z,x_index=N_z - 1,y_index=pos,proj=proj)
+            quad_pump = (beta_weight/np.sqrt(n))*quad_proj(N_omega, N_z, x_index=2*N_z-2,y_index=pos,proj=proj)
+            quad = (1/delta_z)*(quad_one + quad_two + quad_three) + quad_pump
+            quad = 0.5*(quad + quad.conj().T)
+            lin = -(1/np.sqrt(n))*get_lin_matrices(N_z, N_omega, (11/(6*delta_z))*proj.conj().T + proj.conj().T@delta_k)[pos]
+            mat = sparse.bmat([[quad, 0.5*lin],
+                               [0.5*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]])
+            mats.append(mat)
+    return mats
+
+def constr_fin_diff_quad_lin_plus_N_z_4(N_omega, z, beta_weight, n, delta_k, project):
+    """
+    Gives the matrices governing the 3rd order accuracy of backwards finite difference 
+    involving quadratic and linear terms of plus propagators
+    """
+    terms = [1., 1.j]
+    mats = []
+    N_z = len(z)
+    delta_z = np.abs(z[1] - z[0])
+    for i in range(len(terms)):
+        proj = terms[i]*project
+        for j in range(3):
+            quad_one = (1/3)*quad_proj(N_omega, N_z,x_index=2,y_index=j,proj=proj)
+            quad_two = -1.5*quad_proj(N_omega, N_z,x_index=1,y_index=j,proj=proj)
+            quad_three = 3*quad_proj(N_omega, N_z,x_index=0,y_index=j,proj=proj)
+            quad_pump = (beta_weight/np.sqrt(n))*quad_proj(N_omega, N_z,x_index=2*N_z-2,y_index=j,proj=proj)
+            quad = (1/delta_z)*(quad_one + quad_two + quad_three) - quad_pump
+            quad = 0.5*(quad + quad.conj().T)
+            lin = -(1/np.sqrt(n))*get_lin_matrices(N_z, N_omega, (11/(6*delta_z))*proj.conj().T + proj.conj().T@delta_k)[j]
+            mat = sparse.bmat([[quad, 0.5*lin],
+                               [0.5*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]])
+            mats.append(mat)
+    return mats
 
 def constr_fin_diff_quad_lin_minus(N_omega, z, beta_weight, n, delta_k, project):
     """
@@ -498,39 +571,28 @@ def constr_first_last_row_pump(N_omega, N_z, fixed_beta, free_indices):
         mats.append(mat)
     return mats
 
-def basic_affine_ineq_pump(N_omega, N_z, free_indices, high_bound):
+def basic_affine_ineq_pump(N_omega, N_z, fixed_pump, margin):
     """
     Gives matrices to enforce affine inequality constraints on the freely
-    varying indices of the pump. The inequality is a box inequality, so values
-    of the pump is in between +high_bound and -high_bound
+    varying indices of the pump. Taking in a fixed pump, it allows the pump 
+    to vary within a certain margin 
     """
-    lower_row_indices = free_indices//2
-    upper_row_indices = free_indices - lower_row_indices
-    high_mats = []
-    low_mats = []
-    for i in range(upper_row_indices):
-        hankel_vec_upper = np.zeros(N_omega)
-        hankel_vec_lower = np.zeros(N_omega)
-        if i == 0:
-            hankel_vec_upper[-1] = 1
-        else:
-            hankel_vec_upper[N_omega - 1 - i] = 1
-            hankel_vec_lower[i] = 1
-        proj_upper = sparse.csc_matrix(scipy.linalg.hankel(hankel_vec_upper, np.zeros(N_omega)))
-        proj_lower = sparse.csc_matrix(scipy.linalg.hankel(np.zeros(N_omega), hankel_vec_lower))
-        lin_upper = get_lin_matrices(N_z, N_omega, proj_upper)[(2*N_z - 2)]
-        lin_lower = get_lin_matrices(N_z, N_omega, proj_lower)[(2*N_z - 2)]
-        high_mat_upper = sparse.bmat([[sparse.csc_matrix(((2*N_z - 1)*N_omega,(2*N_z - 1)*N_omega)), 0.5*lin_upper],
-                                [0.5*lin_upper.conj().T, -(high_bound/N_omega)*sparse.eye(N_omega)]])
-        high_mat_lower = sparse.bmat([[sparse.csc_matrix(((2*N_z - 1)*N_omega,(2*N_z - 1)*N_omega)), 0.5*lin_lower],
-                                [0.5*lin_lower.conj().T, -(high_bound/N_omega)*sparse.eye(N_omega)]])
-        low_mat_upper = sparse.bmat([[sparse.csc_matrix(((2*N_z - 1)*N_omega,(2*N_z - 1)*N_omega)), 0.5*lin_upper],
-                                [0.5*lin_upper.conj().T, (high_bound/N_omega)*sparse.eye(N_omega)]])
-        low_mat_lower = sparse.bmat([[sparse.csc_matrix(((2*N_z - 1)*N_omega,(2*N_z - 1)*N_omega)), 0.5*lin_lower],
-                                [0.5*lin_lower.conj().T, (high_bound/N_omega)*sparse.eye(N_omega)]])
-        high_mats += [high_mat_upper, high_mat_lower]
-        low_mats += [low_mat_upper, low_mat_lower]
-    return high_mats, low_mats
+    one_hot_list = list(np.eye(N_omega))
+    positions = np.arange(0, N_omega)
+    upper_hankel_gen = lambda pos:np.vstack((one_hot_list[pos], np.zeros((N_omega - 1, N_omega))))
+    lower_hankel_gen = lambda pos:np.vstack((np.zeros((N_omega - 1, N_omega)), one_hot_list[pos]))
+    projections = list(map(upper_hankel_gen, positions)) + list(map(lower_hankel_gen, positions[1:]))
+    mats = []
+    for i in range(len(projections)):
+        upper_bound = fixed_pump[i] + margin
+        lower_bound = fixed_pump[i] - margin
+        lin = get_lin_matrices(N_z, N_omega, projections[i])[2*N_z - 2]
+        leq_mat = sparse.bmat([[sparse.csc_matrix(((2*N_z - 1)*N_omega, (2*N_z - 1)*N_omega)), 0.5*lin],
+                               [0.5*lin.conj().T, -(upper_bound/N_omega)*sparse.eye(N_omega)]])
+        geq_mat =sparse.bmat([[sparse.csc_matrix(((2*N_z - 1)*N_omega, (2*N_z - 1)*N_omega)), -0.5*lin],
+                               [-0.5*lin.conj().T, (lower_bound/N_omega)*sparse.eye(N_omega)]])
+        mats += [leq_mat, geq_mat]
+    return mats
 
 def pump_quad_ineq(N_omega, N_z):
     """
@@ -596,7 +658,7 @@ def get_hermite_polynom_mat(omega, max_order, width):
     """
     N_omega = len(omega)
     increase_omega = np.linspace(omega[0], omega[-1], 2*N_omega - 1)
-    gauss_modes_mat = (1/np.sqrt(np.sqrt(np.pi)))*np.exp(-increase_omega**2/0.5)
+    gauss_modes_mat = (1/np.sqrt(np.sqrt(np.pi)))*np.exp(-increase_omega**2/width)
     for i in range(1, max_order):
         norm_cst = (1/np.sqrt((2**i)*math.factorial(i)*np.sqrt(np.pi)))
         gauss_modes_mat = np.vstack([gauss_modes_mat, norm_cst*scipy.special.hermite(i)(increase_omega)*np.exp(-increase_omega**2/width)])
