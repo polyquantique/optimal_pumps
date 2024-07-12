@@ -70,63 +70,43 @@ def sdr_def_constr(N_omega, N_z, proj):
                                   [sparse.csc_matrix((N_omega,(2*N_z - 1)*N_omega)), proj + proj.conj().T]])
     return constr_sdr_def
 
-def dynamics_W(omega, z, proj, prop_sign, pump_power):
-    """
-    delta_v = 1, prop_sign either "plus" or "minus"
-    """
+def get_dynamics_mats(omega, z, beta_weight, n, proj):
     N_omega = len(omega)
     N_z = len(z)
     delta_z = np.abs(z[1] - z[0])
-    dynamics_real_list = []
-    dynamics_imag_list = []
+    mat_plus_real = []
+    mat_plus_imag = []
+    mat_minus_real = []
+    mat_minus_imag = []
     for i in range(1, N_z):
         green_f = get_green_f(omega, z[:i + 1])
         green_f.reverse()
         green_f[0] = 0.5*green_f[0]
         green_f[-1] = 0.5*green_f[-1]
-        projected_green_f = [sparse.csc_matrix(green_f[i]@proj.conj()) for i in range(len(green_f))]
-        dyn_green_f = [pump_power*delta_z*projected_green_f[i + 1] for i in range(i)]
-        stacked_dynamics = sparse.hstack(dyn_green_f)
-        if prop_sign == "plus":
-            stacked_dynamics.resize((N_omega, (2*N_z - 1)*N_omega))
-            stacked_dynamics = sparse.vstack([sparse.csc_matrix(((2*N_z - 2)*N_omega, (2*N_z - 1)*N_omega)), stacked_dynamics])
-            dynamics_real_list.append(0.5*(stacked_dynamics + stacked_dynamics.conj().T))
-            dynamics_imag_list.append(-0.5*(1.j*stacked_dynamics - 1.j*stacked_dynamics.conj().T))
-        if prop_sign == "minus":
-            stacked_dynamics.resize((N_omega, (N_z)*N_omega))
-            stacked_dynamics = sparse.hstack([sparse.csc_matrix((N_omega, (N_z - 1)*N_omega)), stacked_dynamics])
-            stacked_dynamics = sparse.vstack([sparse.csc_matrix(((2*N_z - 2)*N_omega, (2*N_z - 1)*N_omega)), stacked_dynamics])
-            dynamics_real_list.append(-0.5*(stacked_dynamics + stacked_dynamics.conj().T))
-            dynamics_imag_list.append(0.5*(1.j*stacked_dynamics - 1.j*stacked_dynamics.conj().T))
-    return dynamics_real_list, dynamics_imag_list
-
-def get_dynamics_sdr(omega, z, proj, n, pump_power):
-    """
-    Gives the semidefinite relaxation matrices for the dynamics constraints
-    """
-    N_omega = len(omega)
-    N_z = len(z)
-    delta_z = np.abs(z[1] - z[0])
-    dynamics_real_plus, dynamics_imag_plus = dynamics_W(omega, z, proj, "plus", pump_power)
-    dynamics_real_minus, dynamics_imag_minus = dynamics_W(omega, z, proj, "minus", pump_power)
-    U_lin_list = get_lin_matrices(N_z, N_omega, proj)
-    dynamics_real_plus_sdr = []
-    dynamics_imag_plus_sdr = []
-    dynamics_real_minus_sdr = []
-    dynamics_imag_minus_sdr = []
-    for i in range(1, N_z):
-        green_f = get_green_f(omega, z[:i + 1])[-1]
-        cst_green_f = (1/np.sqrt(n))*np.trace(proj.conj().T@green_f)
-        lin_green_f = get_lin_matrices(N_z, N_omega, 0.5*(1/np.sqrt(n))*delta_z*pump_power*(proj.conj().T@green_f).conj().T)[-1]
-        dynamics_real_plus_sdr.append(sparse.bmat([[dynamics_real_plus[i - 1], 0.5*(-U_lin_list[i - 1] + lin_green_f)],
-                                                   [0.5*(-U_lin_list[i - 1] + lin_green_f).conj().T, np.real(cst_green_f/N_omega)*sparse.eye(N_omega)]]))
-        dynamics_imag_plus_sdr.append(sparse.bmat([[dynamics_imag_plus[i - 1], 0.5*(1.j*(-U_lin_list[i - 1] + lin_green_f))],
-                                                   [0.5*(1.j*(-U_lin_list[i - 1] + lin_green_f)).conj().T, np.imag(cst_green_f/N_omega)*sparse.eye(N_omega)]]))
-        dynamics_real_minus_sdr.append(sparse.bmat([[dynamics_real_minus[i - 1], 0.5*(-U_lin_list[i - 2 + N_z] - lin_green_f)],
-                                                    [0.5*(-U_lin_list[i - 2 + N_z] - lin_green_f).conj().T, np.real(cst_green_f/N_omega)*sparse.eye(N_omega)]]))
-        dynamics_imag_minus_sdr.append(sparse.bmat([[dynamics_imag_minus[i - 1], 0.5*(1.j*(-U_lin_list[i - 2 + N_z] - lin_green_f))],
-                                                    [0.5*(1.j*(-U_lin_list[i - 2 + N_z] - lin_green_f)).conj().T, np.imag(cst_green_f/N_omega)*sparse.eye(N_omega)]]))
-    return dynamics_real_plus_sdr, dynamics_imag_plus_sdr, dynamics_real_minus_sdr, dynamics_imag_minus_sdr
+        green_f = [sparse.csc_matrix(proj@green_f[i].conj().T) for i in range(len(green_f))]
+        dyn_green_f = [beta_weight*delta_z*green_f[i] for i in range(len(green_f))]
+        stacked_dynamics = sparse.vstack(dyn_green_f[1:len(green_f)])
+        quad_plus = sparse.vstack([sparse.hstack([sparse.csc_matrix((i*N_omega, (2*N_z - 2)*N_omega)), stacked_dynamics]),sparse.csc_matrix(((2*N_z - 1 - i)*N_omega, (2*N_z - 1)*N_omega))])
+        quad_minus = -sparse.vstack([
+            sparse.csc_matrix(((N_z - 1)*N_omega,(2*N_z - 1)*N_omega)),
+            sparse.hstack([sparse.csc_matrix((i*N_omega,(2*N_z - 2)*N_omega)), stacked_dynamics]),
+            sparse.csc_matrix(((N_z - i)*N_omega,(2*N_z - 1)*N_omega))
+        ])
+        lin_pump = get_lin_matrices(N_omega = N_omega, N_z = N_z, proj = (1/np.sqrt(n))*dyn_green_f[0])[-1]
+        lin_prop_plus = get_lin_matrices(N_omega = N_omega, N_z = N_z, proj = proj)[i-1]
+        lin_prop_minus = get_lin_matrices(N_omega = N_omega, N_z = N_z, proj = proj)[N_z - 1 + i - 1]
+        lin_plus = - lin_prop_plus + lin_pump
+        lin_minus = - lin_prop_minus - lin_pump
+        cst = 2*(1/np.sqrt(n))*(green_f[0]).trace()
+        mat_plus_real.append(sparse.bmat([[0.5*(quad_plus + quad_plus.conj().T), 0.5*lin_plus],
+                                        [0.5*lin_plus.conj().T, (np.real(cst)/N_omega)*sparse.eye(N_omega)]]))
+        mat_plus_imag.append(sparse.bmat([[-0.5*1.j*(quad_plus - quad_plus.conj().T), -0.5*1.j*lin_plus],
+                                        [0.5*1.j*lin_plus.conj().T, (np.imag(cst)/N_omega)*sparse.eye(N_omega)]]))
+        mat_minus_real.append(sparse.bmat([[0.5*(quad_minus + quad_minus.conj().T), 0.5*lin_minus],
+                                        [0.5*lin_minus.conj().T, (np.real(cst)/N_omega)*sparse.eye(N_omega)]]))
+        mat_minus_imag.append(sparse.bmat([[-0.5*1.j*(quad_minus - quad_minus.conj().T), -0.5*1.j*lin_minus],
+                                        [0.5*1.j*lin_minus.conj().T, (np.imag(cst)/N_omega)*sparse.eye(N_omega)]]))
+    return mat_plus_real + mat_plus_imag + mat_minus_real + mat_minus_imag
 
 def sympl_constr_sdr(N_omega, N_z, proj, n):
     """
@@ -235,7 +215,7 @@ def constr_sympl_plus(N_z, N_omega, n, project):
             mats.append(mat)
     return mats
 
-def backwards_fin_diff_quad_plus(N_omega, z, beta_weight, delta_k, proj):
+def backwards_fin_diff_quad_plus(N_omega, z, beta_weight, n, delta_k, proj):
     """
     Gives the matrices for a projection that apply the backwards finite difference constraint
     on the quadratic parts of the plus propagators and on the quadratic part with the pump
@@ -247,16 +227,16 @@ def backwards_fin_diff_quad_plus(N_omega, z, beta_weight, delta_k, proj):
     imag_mat = []
     for j in range(N_z - 1):
         quad_j_prop = sum([(1/delta_z)*coeffs[i + 1]*quad_proj(N_omega, N_z, j, i, proj) for i in range(len(coeffs) - 1)])
-        quad_j_pump = beta_weight*quad_proj(N_omega, N_z, j, 2*N_z - 2, proj)
+        quad_j_pump = (1/np.sqrt(n))*beta_weight*quad_proj(N_omega, N_z, j, 2*N_z - 2, proj)
         quad = quad_j_prop - quad_j_pump
-        lin = (get_lin_matrices(N_omega=N_omega, N_z = N_z, proj = (coeffs[0]/delta_z)*proj - proj@delta_k)[j])
+        lin = (get_lin_matrices(N_omega=N_omega, N_z = N_z, proj = (coeffs[0]/(np.sqrt(n)*delta_z))*proj - (1/np.sqrt(n))*proj@delta_k)[j])
         real_mat.append(sparse.bmat([[0.5*(quad + quad.conj().T), 0.5*lin],
                                     [0.5*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]]))
         imag_mat.append(sparse.bmat([[-0.5*1.j*(quad - quad.conj().T), -0.5*1.j*lin],
-                                     [0.5*1.j*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]]))
+                                    [0.5*1.j*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]]))
     return real_mat + imag_mat
 
-def backwards_fin_diff_quad_minus(N_omega, z, beta_weight, delta_k, proj):
+def backwards_fin_diff_quad_minus(N_omega, z, beta_weight, n, delta_k, proj):
     """
     Gives the matrices for a projection that apply the backwards finite difference constraint
     on the quadratic parts of the minus propagators and on the quadratic part with the pump
@@ -268,14 +248,34 @@ def backwards_fin_diff_quad_minus(N_omega, z, beta_weight, delta_k, proj):
     imag_mat = []
     for j in range(N_z - 1):
         quad_j_prop = sum([(1/delta_z)*coeffs[i + 1]*quad_proj(N_omega, N_z, N_z - 1 + j, N_z - 1 + i, proj) for i in range(len(coeffs) - 1)])
-        quad_j_pump = beta_weight*quad_proj(N_omega, N_z, N_z - 1 + j, 2*N_z - 2, proj)
+        quad_j_pump = (1/np.sqrt(n))*beta_weight*quad_proj(N_omega, N_z, N_z - 1 + j, 2*N_z - 2, proj)
         quad = quad_j_prop + quad_j_pump
-        lin = (get_lin_matrices(N_omega=N_omega, N_z = N_z, proj = (coeffs[0]/delta_z)*proj - proj@delta_k)[N_z - 1 + j])
+        lin = (get_lin_matrices(N_omega=N_omega, N_z = N_z, proj = (coeffs[0]/(np.sqrt(n)*delta_z))*proj - (1/np.sqrt(n))*proj@delta_k)[N_z - 1 + j])
         real_mat.append(sparse.bmat([[0.5*(quad + quad.conj().T), 0.5*lin],
                                     [0.5*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]]))
         imag_mat.append(sparse.bmat([[-0.5*1.j*(quad - quad.conj().T), -0.5*1.j*lin],
-                                     [0.5*1.j*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]]))
+                                    [0.5*1.j*lin.conj().T, sparse.csc_matrix((N_omega, N_omega))]]))
     return real_mat + imag_mat
+
+def central_finite_diff_affine(z, N_omega, beta_weight, n, delta_k, proj):
+    """
+    Gives the central finite difference constraints governing the linear parts of propagators,
+    the pump matrix and the phase-matching matrix
+    """
+    N_z = len(z)
+    delta_z = np.abs(z[1] - z[0])
+    coeffs = findiff.coefficients(deriv = 1, offsets=list(np.arange(-N_z + 1, 0)) + list(np.arange(1, N_z )))["coefficients"][N_z - 1:]
+    lin_pump = beta_weight*(1/np.sqrt(n))*get_lin_matrices(N_omega = N_omega, N_z = N_z, proj = proj)[-1]
+    lin_plus = (1/delta_z)*sum([get_lin_matrices(N_omega = N_omega, N_z = N_z, proj = -coeffs[i]*proj)[i] for i in range(len(coeffs))])
+    lin_minus = (1/delta_z)*sum([get_lin_matrices(N_omega = N_omega, N_z = N_z, proj = coeffs[i]*proj.conj().T)[N_z - 1 + i] for i in range(len(coeffs))])
+    lin_real = lin_pump + lin_plus + lin_minus
+    lin_imag = 1.j*(lin_pump + lin_plus - lin_minus)
+    cst = (1/np.sqrt(n))*np.trace(proj@delta_k)
+    mat_real = sparse.bmat([[sparse.csc_matrix(((2*N_z - 1)*N_omega,(2*N_z - 1)*N_omega)), 0.5*lin_real],
+                            [0.5*lin_real.conj().T, sparse.csc_matrix((N_omega, N_omega))]])
+    mat_imag = sparse.bmat([[sparse.csc_matrix(((2*N_z - 1)*N_omega,(2*N_z - 1)*N_omega)), 0.5*lin_imag],
+                            [0.5*lin_imag.conj().T, np.imag((cst/N_omega))*sparse.eye(N_omega)]])
+    return mat_real, mat_imag
 
 def limit_pump_power(omega, N_z):
     """
