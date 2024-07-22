@@ -4,3 +4,7 @@ Pipfile
 __pycache__
 .conda
 .pytest_cache
+drafts.py
+**/results
+**/legacy
+**/plots
