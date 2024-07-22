@@ -2,7 +2,7 @@ import numpy as np
 import jax.numpy as jnp
 import scipy
 
-def get_constants(vp, l, wi, wf, Np, alpha_phase, N = 401):
+def get_constants(vp, l, wi, wf, Np, N = 401):
     """
     Gives the values of the U matrix that do not change with backpropagation.
     All nonlinear interactions beyond second order are ignored.
@@ -26,10 +26,10 @@ def get_constants(vp, l, wi, wf, Np, alpha_phase, N = 401):
     a = 1.61/1.13
     vi = vp / (1 - 2 * a * vp / (l * sigma))
     vs = vp / (1 + 2 * a * vp / (l * sigma))
-    alpha = jnp.exp(1.j*alpha_phase)*jnp.sqrt(Np)*(x[len(x) - 1] - x[0])/(len(x) - 1)/(np.sqrt(2 * np.pi * vs * vi * vp))
     G = jnp.diag((1/vs - 1/vp)*x)
     H = jnp.diag((1/vi - 1/vp)*x)
-    return alpha, G, H
+    return G, H
+    
 def get_initialization_array(init_params, wi, wf, method = "hermite", N=401):
     """
     Gives array that will initialize the pump for backpropagation. Depending
@@ -54,12 +54,9 @@ def get_initialization_array(init_params, wi, wf, method = "hermite", N=401):
         order, amplitude, width, phase = init_params
         real_amplitude = amplitude*np.cos(phase)
         imag_amplitude = amplitude*np.sin(phase)
-        x = jnp.linspace(2*wi, 2*wf, 2*N)
+        x = jnp.linspace(wi, wf, 2*N - 1)
         hermite_poly = scipy.special.hermite(order, monic = True)(x)
-        a.append(real_amplitude*hermite_poly*jnp.exp(-(x**2)/width))
-        a.append(imag_amplitude*hermite_poly*jnp.exp(-(x**2)/width))
-        a = jnp.array(a)
-        a = jnp.reshape(a, 2*len(a[0]))
+        a = jnp.array(list(real_amplitude*hermite_poly*jnp.exp(-(x**2)/width)) + list(imag_amplitude*hermite_poly*jnp.exp(-(x**2)/width)))
     if method == "constant":
-        a = init_params*jnp.ones(4*N)
+        a = init_params*jnp.ones(4*N - 2)
     return a

@@ -24,6 +24,7 @@ def get_JSA(x, U):
     D = jnp.arcsinh(2 * Sig) / 2
     JSA = jnp.abs(L @ D @ Vh) / dw
     return JSA
+    
 def plot_pump(pumps, omega, pump_labels):
     """
     Plots the real and negative part of the pump
