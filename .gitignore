@@ -5,8 +5,8 @@ __pycache__
 .conda
 .pytest_cache
 drafts.py
-*/results/
-*/legacy/
-*/plots/
-.ipynb_checkpoints*
-.vs*
+inv_design/results/
+inv_design/legacy/
+inv_design/plots/
+.ipynb_checkpoints/
+.vs/
