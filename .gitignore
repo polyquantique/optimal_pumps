@@ -1,4 +1,7 @@
-*.npy
+**.npy
+**.pdf
+**.txt
+**.png
 .ipynb_checkpoints/
 __pycache__/
 plots_and_matshows/
