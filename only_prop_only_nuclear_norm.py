@@ -6,6 +6,14 @@ import findiff
 
 np.random.seed(0)
 
+def gen_proj(basis_type):
+    """
+    Gives a list of projection matrices that form a matrix basis
+    """
+    if basis_type == "canonical":
+        projections = []
+    return
+
 def quad_proj(N_omega, N_z, x_index, y_index, proj):
     """
     Gives a matrix with the proj matrix on the x_index block on the vertical
@@ -60,6 +68,9 @@ def get_lin_matrices(N_z, N_omega, proj):
     return lin
 
 def get_green_f(omega, z):
+    """
+    Gives the Green's function defined over the discretized waveguide
+    """
     return [np.diag(np.exp(1.j*omega*z[i])) for i in range(len(z))]
 
 def sdr_def_constr(N_omega, N_z, proj):
@@ -71,6 +82,10 @@ def sdr_def_constr(N_omega, N_z, proj):
     return constr_sdr_def
 
 def get_dynamics_mats(omega, z, beta_weight, n, proj):
+    """
+    Gives the matrices giving the constraints on the real and the imaginary parts of 
+    the dynamics of U_plus and U_minus 
+    """
     N_omega = len(omega)
     N_z = len(z)
     delta_z = np.abs(z[1] - z[0])
