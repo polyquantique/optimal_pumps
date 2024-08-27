@@ -15,7 +15,9 @@ def get_hankel_matrix(pump, N_omega):
     returns:
         array[float]: Hankel matrix representing the pump
     """
-    complex_pump = pump[:2*N_omega - 1] + 1.j*pump[2*N_omega - 1:]
+    real_proj = jnp.hstack([jnp.eye(2*N_omega - 1), jnp.zeros((2*N_omega - 1, 2*N_omega - 1))])
+    imag_proj = jnp.hstack([jnp.zeros((2*N_omega - 1, 2*N_omega - 1)), jnp.eye(2*N_omega - 1)])
+    complex_pump = real_proj@pump + 1.j*imag_proj@pump
     starts = np.arange(0, len(complex_pump) - N_omega + 1)
     return vmap(lambda start:jax.lax.dynamic_slice(complex_pump, (start,), (N_omega,)))(starts)
 
@@ -27,8 +29,8 @@ def get_submatrices(pump, N_omega, G, H, l):
     Args:
         pump (array[float]): vector including the real and imaginary part of the pump, its size is 4*N_omega - 2
         N_omega (int): size of the matrices
-        G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
-        H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
+        G (array[complex]): matrix containing phase matching conditions on signal state
+        H (array[complex]): matrix containing phase matching conditions on idler state
         l (float): length of the waveguide
     returns:
         array[complex]: output matrix
@@ -50,14 +52,14 @@ def get_observables(pump, N_omega, G, H, l):
     Args:
         pump (array[float]): vector including the real and imaginary part of the pump, its size is 4*N_omega - 2
         N_omega (int): size of the matrices
-        G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
-        H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
+        G (array[complex]): matrix containing phase matching conditions on signal state
+        H (array[complex]): matrix containing phase matching conditions on idler state
         l (float): length of the waveguide
     returns:
         N_value (float): the average number of photon pairs created
         schmidt_number (float): the schmidt number corresponding to all the parameters
     """
-    U_ss, U_is, U_si, U_ii = get_submatrices(pump, N_omega, G, H, l)
+    _, U_is, _, _ = jax.jit(get_submatrices, static_argnums=(1,))(pump, N_omega, G, H, l)
     N_matrix = jnp.matmul(jnp.conj(U_is), U_is.T)
     N_value = jnp.trace(N_matrix)
     schmidt_number = (N_value**2)/(jnp.trace(jnp.matmul(N_matrix, N_matrix)))
@@ -86,8 +88,8 @@ def problem(pump, omega, G, H, l, y_N, k):
     Args:
         pump (array[float]): vector including the real and imaginary part of the pump, its size is 4*N_omega - 2
         omega (array[float]): vector of discretized frequency domain
-        G (array[complex]): matrix giving the dependency of a_s(z) on a_z(z_o)
-        H (array[complex]): matrix giving the dependency of a_i(z) dagger on a_i(z_o) dagger
+        G (array[complex]): matrix containing phase matching conditions on signal state
+        H (array[complex]): matrix containing phase matching conditions on idler state
         l (float): length of the waveguide
         y_N (float): targeted mean photon number
         k (int): penalty value for penalty method
