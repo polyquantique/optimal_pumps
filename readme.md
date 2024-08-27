@@ -29,3 +29,44 @@ where $\Delta k_j = \frac{1}{v_j} - \frac{1}{v_p}$, where $v_j$ is the group vel
 \bar{a}_I^\dagger(z, \omega')
 \end{bmatrix} ,
 ```
+where $\Delta k_j \omega$ is a diagonal matrix for containing information about phase matching for state $j$ and $\beta$ a Hankel matrix representing $\beta (\omega + \omega')$. The matrix $A$ is an element of the Lie algebra and is used to generate the propagator associate to the dynamics which will be an element of the group $SU(1,1)$.\\
+
+\noindent The spectral purity of SPDC dynamics in frequency and space domain for a waveguide can be represented by the Schmidt number $K$, which can be expressed by
+
+```math
+\begin{align}
+K = \frac{\text{Tr}\left[U_{SI}^*U_{SI}^{T}\right]^2}{\text{Tr}\left[U_{SI}^*U_{SI}^{T}U_{SI}^*U_{SI}^{T}\right]},
+\end{align}
+```
+where $U_{SI}$ is a block of the matrix $U$, which is an element of the group $SU(1,1)$. The constraint that the average photon number pairs is equal to $n$, which in this notebook will be 3, can be written as $\text{Tr}\left[U_{SI}^* U_{SI}^T\right] - n = 0$, which also used the matrix $U_{SI}$. The matrix $U$ can be obtained by exponentiating $A$ such as
+
+```math
+U = 
+\begin{bmatrix}
+U_{SS} & U_{SI}\\
+U_{IS}^* & U_{II}^*
+\end{bmatrix}
+=
+\text{exp}\left(\text{i}\begin{bmatrix}
+\Delta k_S \omega & \frac{\gamma}{\sqrt{2\pi}} \beta \\
+-\frac{\gamma ^*}{\sqrt{2\pi}}\beta ^\dagger & -\Delta k_I \omega
+\end{bmatrix}\right).
+```
+Because the theoretical minimum of the Schmidt number is 1, the objective function becomes $K-1$ and the problem becomes
+```math
+\begin{align}
+\text{min} \ & \frac{\text{Tr}\left[U_{SI}^*U_{SI}^{T}\right]^2}{\text{Tr}\left[U_{SI}^*U_{SI}^{T}U_{SI}^*U_{SI}^{T}\right]} - 1\\
+\text{s. c.} \ & \text{Tr}\left[U_{SI}^* U_{SI}^T\right] - n = 0,\\
+& \begin{bmatrix}
+U_{SS} & U_{SI}\\
+U_{IS}^* & U_{II}^*
+\end{bmatrix}
+=
+\text{exp}\left(\text{i}\begin{bmatrix}
+\Delta k \omega & \frac{\gamma}{\sqrt{2\pi}} \beta \\
+-\frac{\gamma ^*}{\sqrt{2\pi}}\beta ^\dagger & \Delta k \omega
+\end{bmatrix}\right).
+\end{align}
+```
+
+
