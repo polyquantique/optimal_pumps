@@ -10,5 +10,22 @@ The numerical optimization model is from the paper by _Quesada et al_ **Phys. Re
 ```math
 \frac{\partial }{\partial z}a_I^\dagger(z, \omega) = -\text{i}\omega \Delta k_I a_I ^\dagger(z, \omega) - \frac{\text{i}\gamma ^* (z)}{\sqrt{2\pi}}\int \beta ^* (\omega + \omega ')a_S(z, \omega),
 ```
+where $\Delta k_j = \frac{1}{v_j} - \frac{1}{v_p}$, where $v_j$ is the group velocity of the mode $j \in \{S, I\}$, $\omega$ the frequency, $\beta(\omega)$ the slowly varying envelope of the pump in frequency domain, $\gamma (z)$ a tophat function associated to second order nonlinearity and $a_j (z, \omega)$ the annihilation operator for the mode $j$. The equations can be described by discretization into normal modes as
 
-
+```math
+\frac{\partial}{\partial z}\begin{bmatrix}
+\bar{a}_S(z, \omega)\\
+\bar{a}_I^\dagger(z, \omega)
+\end{bmatrix}=
+\text{i}\begin{bmatrix}
+\Delta k_S \omega & \frac{\text{i}\gamma}{\sqrt{2\pi}}\beta \\
+-\frac{\text{i}\gamma ^*}{\sqrt{2\pi}}\beta ^\dagger & -\Delta k_I \omega
+\end{bmatrix}
+\begin{bmatrix}
+\bar{a}_S(z, \omega')\\
+\bar{a}_I^\dagger(z, \omega')
+\end{bmatrix} = \text{i}A\begin{bmatrix}
+\bar{a}_S(z, \omega')\\
+\bar{a}_I^\dagger(z, \omega')
+\end{bmatrix} ,
+```
