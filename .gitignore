@@ -5,9 +5,10 @@ __pycache__
 .conda
 .pytest_cache
 drafts.py
-/images
+images/
 inv_design/results/
 inv_design/legacy/
 inv_design/plots/
 .ipynb_checkpoints/
 .vs/
+**/.png
