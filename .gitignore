@@ -5,6 +5,7 @@ __pycache__
 .conda
 .pytest_cache
 drafts.py
+/images
 inv_design/results/
 inv_design/legacy/
 inv_design/plots/
