@@ -40,7 +40,9 @@ K = \frac{\text{Tr}\left[U_{SI}^*U_{SI}^{T}\right]^2}{\text{Tr}\left[U_{SI}^*U_{
 ```
 where $U_{SI}$ is a block of the matrix $U$, which is an element of the group $SU(1,1)$. The constraint that the average photon number pairs is equal to $n$, which in this notebook will be 3, can be written as 
 ```math
-\text{Tr}\left[U_{SI}^* U_{SI}^T\right] - n = 0$, which also used the matrix $U_{SI}.
+\begin{align}
+\text{Tr}\left[U_{SI}^* U_{SI}^T\right] - n = 0.
+\end{align}
 ```
 The matrix $U$ can be obtained by exponentiating $A$ such as
 ```math
