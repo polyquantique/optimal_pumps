@@ -2,7 +2,7 @@ import numpy as np
 import jax.numpy as jnp
 import scipy
 
-def get_constants(vp, l, wi, wf, Np, N = 401):
+def get_constants(vp, l, wi, wf, N = 401):
     """
     Gives the values of the U matrix that do not change with backpropagation.
     All nonlinear interactions beyond second order are ignored.
@@ -12,7 +12,6 @@ def get_constants(vp, l, wi, wf, Np, N = 401):
         l(float): length of the waveguide
         wi(float): starting frequency difference from center frequency
         wf(float): ending frequency difference from center frequency
-        Np(float): initial power of the pump
         alpha_phase(float): the phase of the coefficient multiplying the pump
         N(int): resolution of the F matrix
         
