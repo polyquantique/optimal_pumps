@@ -250,7 +250,6 @@ def ineq_on_propagators(N_omega, N_z, Q_mat_list):
     """
     Gives the linear constraints on U_plus and U_minus with prefixed unitary matrix
     """
-    # Need to verify it is right
     len_Q = len(Q_mat_list)
     imag_mat_list = []
     real_mat_list = []
