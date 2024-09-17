@@ -1,11 +1,10 @@
-*.npy
-*.pdf
-*.txt
-*.png
-*.out
-.ipynb_checkpoints/
-__pycache__/
-plots_and_matshows/
+bound_evaluation/*.npy
+bound_evaluation/*.pdf
+bound_evaluation/*.txt
+bound_evaluation/*.png
+bound_evaluation/*.out
+**/__pycache__/
+**/plots_and_matshows/
 
 **/.ipynb_checkpoints*
 **/.vs*
